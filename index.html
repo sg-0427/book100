@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>서울대 추천도서 100선: 인터랙티브 가이드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony (Warm Neutrals with Muted Teal/Slate Accents) -->
+    <!-- Application Structure Plan: The application is designed as a single-page, scrollable journey based on the 5-step reading guide. This structure was chosen because it provides a clear, progressive path for beginner readers, which was the user's primary need. The user flow starts with a visual dashboard for a high-level overview, followed by navigation/filter controls, and then the main content area with book cards grouped by the 5 stages. This top-down structure (overview -> tools -> details) is intuitive and supports both passive browsing and active searching. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Distribution of books across 5 stages and original categories. Goal: Inform/Organize. Viz/Method: Two Chart.js charts (Doughnut for stages, Bar for categories) inside a collapsible accordion. Interaction: Tooltips on hover, expand/collapse accordion. Justification: Provides a quick, digestible summary of the list's composition, making it less intimidating and reducing initial screen clutter.
+        - Report Info: Full book list (title, author, publisher, guide). Goal: Explore/Inform. Viz/Method: HTML/Tailwind CSS cards in a grid. Interaction: Cards are filterable by search and multiple dropdowns. Clicking a card opens a modal with detailed info and memo functionality. Justification: Cards are visually engaging. The modal provides detailed context and personal record-keeping without cluttering the main view.
+        - Library/Method: Chart.js for canvas-based charts, Vanilla JS for all interactions (search, filtering, modal controls, memo CRUD operations, accordion).
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .chart-container { position: relative; width: 100%; max-width: 450px; margin-left: auto; margin-right: auto; height: 320px; max-height: 400px; }
+        @media (min-width: 768px) { .chart-container { height: 400px; } }
+        .modal-enter { transform: scale(0.9); opacity: 0; }
+        .modal-enter-active { transform: scale(1); opacity: 1; transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .modal-leave-active { transform: scale(0.9); opacity: 0; transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .backdrop-enter { opacity: 0; }
+        .backdrop-enter-active { opacity: 1; transition: opacity 0.2s ease-in-out; }
+        .backdrop-leave-active { opacity: 0; transition: opacity 0.2s ease-in-out; }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .accordion-content.open {
+            max-height: 1000px;
+        }
+        .line-clamp-2 {
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+        }
+        .status-filter.active {
+            background-color: #ccfbf1;
+            border-color: #14b8a6;
+        }
+        .book-card:hover {
+            background-color: white;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        /* 관리자 도서목록 테이블 행 hover 효과 */
+        #admin-book-list tr:hover {
+            background-color: #e0f7fa !important;
+            transition: background 0.2s;
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800">
+
+    <div id="app">
+        <header class="bg-white shadow-md sticky top-0 z-30">
+            <div class="container mx-auto px-4">
+                <div class="flex justify-between items-center py-3">
+                    <h1 class="text-xl md:text-2xl font-bold text-teal-800 cursor-pointer" id="home-btn">&nbsp;&nbsp;&nbsp;&nbsp;서울대추천도서100</h1>
+                    <nav class="hidden md:flex items-center gap-4">
+                        <a href="#statistics-accordion" class="text-stone-600 hover:text-teal-700">독서 현황</a>
+                        <a href="#dashboard-accordion" class="text-stone-600 hover:text-teal-700">인포그래픽</a>
+                        <button id="admin-settings-btn" class="text-stone-600 hover:text-teal-700" title="도서 목록 관리">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
+                        
+                        <button id="add-new-book-btn-header" class="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition text-sm">새 책 추가</button>
+                        
+                    </nav>
+                    <div class="md:hidden">
+                        <button id="hamburger-btn">
+                            <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7" /></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+             <!-- Mobile Menu -->
+            <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-stone-200 p-4 space-y-4">
+                <a href="#statistics-accordion" class="mobile-nav-link block py-2 px-4 text-stone-600 hover:bg-stone-100 rounded-md">독서 현황</a>
+                <a href="#dashboard-accordion" class="mobile-nav-link block py-2 px-4 text-stone-600 hover:bg-stone-100 rounded-md">인포그래픽</a>
+                <button id="trash-view-btn-mobile" class="w-full text-left py-2 px-4 text-stone-600 hover:bg-stone-100 rounded-md">휴지통</button>
+                <div id="mobile-filter-area" class="space-y-4 border-t pt-4">
+                    <!-- Mobile filters will be injected here by JS -->
+                </div>
+            </div>
+        </header>
+
+        <main class="container mx-auto p-4 md:p-8">
+            <div id="main-content-view">
+                <section id="explorer" class="bg-white p-6 rounded-xl shadow-md mb-12">
+                     <div class="flex flex-col md:flex-row gap-4 mb-4">
+                        <div class="relative flex-grow">
+                            <input type="text" id="search-input" placeholder="도서명 또는 저자로 검색..." class="w-full p-3 pl-10 border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-5 w-5 text-stone-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" /></svg>
+                            </div>
+                        </div>
+                        <button id="search-btn" class="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition flex items-center justify-center gap-2">검색</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <select id="source-filter-dropdown" class="w-full p-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500"></select>
+                        </div>
+                        <div>
+                            <select id="category-filter-dropdown" class="w-full p-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500"></select>
+                        </div>
+                        <div>
+                            <select id="stage-filter-dropdown" class="w-full p-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500"></select>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="statistics-accordion" class="mb-12 bg-white p-6 rounded-xl shadow-md scroll-mt-20">
+                    <div id="statistics-toggle" class="flex justify-between items-center cursor-pointer">
+                        <h2 class="text-2xl font-semibold text-stone-700">나의 독서 현황</h2>
+                        <svg id="statistics-arrow" class="w-6 h-6 transition-transform rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </div>
+                    <div id="statistics-content" class="accordion-content open">
+                        <div class="space-y-4 mt-6">
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-base font-medium text-teal-700">완독 진행률</span>
+                                    <span id="progress-text" class="text-sm font-medium text-teal-700">0 / 65</span>
+                                </div>
+                                <div class="w-full bg-stone-200 rounded-full h-2.5">
+                                    <div id="progress-bar" class="bg-teal-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 md:gap-4 text-center pt-2">
+                                <div id="status-filter-completed" class="status-filter p-2 rounded-lg cursor-pointer border-2 border-transparent hover:bg-teal-50">
+                                    <p class="text-2xl font-bold text-stone-800" id="completed-count">0</p>
+                                    <p class="text-stone-500 text-sm">읽은 책</p>
+                                </div>
+                                <div id="status-filter-reading" class="status-filter p-2 rounded-lg cursor-pointer border-2 border-transparent hover:bg-teal-50">
+                                    <p class="text-2xl font-bold text-stone-800" id="reading-count">0</p>
+                                    <p class="text-stone-500 text-sm">읽는 중</p>
+                                </div>
+                                <div id="status-filter-tbr" class="status-filter p-2 rounded-lg cursor-pointer border-2 border-transparent hover:bg-teal-50">
+                                    <p class="text-2xl font-bold text-stone-800" id="tbr-count">65</p>
+                                    <p class="text-stone-500 text-sm">읽을 책</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="dashboard-accordion" class="mb-12 bg-white p-6 rounded-xl shadow-md scroll-mt-20">
+                    <div id="dashboard-toggle" class="flex justify-between items-center cursor-pointer">
+                        <h2 class="text-2xl font-semibold text-stone-700">인포그래픽 요약</h2>
+                        <svg id="dashboard-arrow" class="w-6 h-6 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </div>
+                    <div id="dashboard-content" class="accordion-content">
+                         <p class="max-w-3xl text-stone-600 leading-relaxed mt-4">
+                            서울대학교 추천도서 100선은 단순한 목록을 넘어, 세상을 이해하는 지혜의 길을 안내하는 지도입니다. 이 가이드는 독서에 익숙하지 않은 분들도 쉽고 즐겁게 고전의 세계에 입문할 수 있도록 '5단계 독서 여정'으로 목록을 재구성했습니다. 아래의 통계와 단계별 가이드를 통해 자신만의 독서 경로를 설계해 보세요.
+                        </p>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
+                            <div class="p-2">
+                                <h3 class="text-xl font-semibold text-center mb-4 text-teal-800">5단계 여정 분포</h3>
+                                <div class="chart-container">
+                                    <canvas id="stageChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="p-2">
+                                <h3 class="text-xl font-semibold text-center mb-4 text-teal-800">분야별 도서 분포</h3>
+                                <div class="chart-container">
+                                    <canvas id="categoryChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <div id="book-list" class="space-y-8">
+                </div>
+            </div>
+
+            <div id="trash-view" class="hidden">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h2 class="text-2xl font-semibold text-stone-700 mb-4">휴지통</h2>
+                    <div id="trash-list" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- 도서목록관리 페이지 추가 -->
+            <div id="admin-view" class="hidden container mx-auto my-12">
+                <div class="bg-white rounded-xl shadow-lg p-8">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+                        <h2 class="text-3xl font-bold text-stone-800">도서목록관리</h2>
+                        <div class="flex flex-1 justify-end items-center gap-2">
+                            <!-- 출처 드롭다운 -->
+                            <select id="admin-source-dropdown" class="border border-stone-300 rounded-lg px-3 py-2 w-40 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition">
+                                <option value="All">출처: 전체</option>
+                                <option value="SNU">서울대 추천</option>
+                                <option value="MyBooks">내가 추가한 책</option>
+                            </select>
+                            <!-- 검색 입력박스/버튼 -->
+                            <input type="text" id="admin-search-input" placeholder="제목 또는 저자 검색" class="border border-stone-300 rounded-lg px-3 py-2 w-56 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition" />
+                            <button id="admin-search-btn" class="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition">검색</button>
+                            <!-- 새 책 추가 버튼 -->
+                            <button id="add-new-book-btn-admin" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">새 책 추가</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-stone-700">
+                            <thead class="bg-stone-100">
+                                <tr>
+                                    <th class="px-3 py-2 font-semibold">ID</th>
+                                    <th class="px-3 py-2 font-semibold">제목</th>
+                                    <th class="px-3 py-2 font-semibold">저자</th>
+                                    <th class="px-3 py-2 font-semibold">단계</th>
+                                    <th class="px-3 py-2 font-semibold">분야</th>
+                                    <th class="px-3 py-2 font-semibold">출판사</th>
+                                    <th class="px-3 py-2 font-semibold">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-book-list">
+                                <!-- JS로 도서 목록이 채워집니다 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="text-center py-8 text-stone-500">
+            <p>&copy; 2024 Interactive Reading Guide. All rights reserved.</p>
+        </footer>
+
+        <!-- Details Modal -->
+        <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-60 z-40 hidden"></div>
+        <div id="modal" class="fixed inset-0 flex items-center justify-center p-4 z-50 hidden">
+            <div id="modal-content" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+                <div class="p-6 md:p-8 overflow-y-auto">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <p id="modal-stage" class="text-sm font-bold text-teal-600"></p>
+                            <h2 id="modal-title" class="text-2xl font-bold text-stone-800 mt-1"></h2>
+                            <p id="modal-author" class="text-lg text-stone-600 mt-1"></p>
+                        </div>
+                        <button id="modal-close-btn" class="text-stone-400 hover:text-stone-700 transition">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                    <div class="border-t border-stone-200 pt-4">
+                        <h3 class="font-semibold text-stone-700 mb-2">📖 읽기 가이드</h3>
+                        <p id="modal-guide" class="text-stone-600 leading-relaxed"></p>
+                        <p id="modal-publisher" class="text-sm text-stone-500 mt-6 text-right"></p>
+                    </div>
+                    <div class="mt-6 border-t border-stone-200 pt-4">
+                        <h3 class="font-semibold text-stone-700 mb-3">독서 기록</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label for="start-date" class="block text-sm font-medium text-stone-600">시작일</label>
+                                <input type="date" id="start-date" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                            </div>
+                            <div>
+                                <label for="completion-date" class="block text-sm font-medium text-stone-600">완료일</label>
+                                <input type="date" id="completion-date" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                            </div>
+                        </div>
+                        <div class="mt-4 flex justify-between items-center">
+                             <button id="delete-book-btn" class="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition">휴지통으로 보내기</button>
+                            <button id="save-dates-btn" class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition">날짜 저장</button>
+                        </div>
+                    </div>
+                    <div class="mt-6 border-t border-stone-200 pt-4">
+                        <h3 class="font-semibold text-stone-700 mb-3">나의 독서 노트 📝</h3>
+                        <div id="memo-list" class="space-y-3 mb-4 max-h-48 overflow-y-auto pr-2">
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="memo-input" placeholder="여기에 생각을 남겨보세요..." class="flex-grow p-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500">
+                            <button id="add-memo-btn" class="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition">추가</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add/Edit Book Modal -->
+        <div id="add-book-modal-backdrop" class="fixed inset-0 bg-black bg-opacity-60 z-40 hidden"></div>
+        <div id="add-book-modal" class="fixed inset-0 flex items-center justify-center p-4 z-50 hidden">
+            <div id="add-book-modal-content" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+                <div class="p-6 md:p-8 overflow-y-auto">
+                    <div class="flex justify-between items-start mb-6">
+                        <h2 id="add-book-modal-title" class="text-2xl font-bold text-stone-800">새 책 추가하기</h2>
+                        <button id="add-book-modal-close-btn" class="text-stone-400 hover:text-stone-700 transition">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-stone-700">구분</label>
+                            <div class="mt-2 flex gap-4">
+                                <label class="flex items-center"><input type="radio" name="book-type" value="snu" class="mr-2 text-teal-600 focus:ring-teal-500">서울대 추천도서</label>
+                                <label class="flex items-center"><input type="radio" name="book-type" value="my" class="mr-2 text-teal-600 focus:ring-teal-500" checked>내 책</label>
+                            </div>
+                        </div>
+                        <div id="new-book-stage-container" class="hidden">
+                            <label for="new-book-stage" class="block text-sm font-medium text-stone-700">단계 (1-5)</label>
+                            <select id="new-book-stage" class="mt-1 block w-full rounded-md border-stone-400 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                                <option value="1">1단계: 문학의 숲</option>
+                                <option value="2">2단계: 역사 속 인물</option>
+                                <option value="3">3단계: 사회 보기</option>
+                                <option value="4">4단계: 생각의 뿌리</option>
+                                <option value="5">5단계: 과학으로 보기</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="new-book-title" class="block text-sm font-medium text-stone-700">제목</label>
+                            <input type="text" id="new-book-title" class="mt-1 block w-full rounded-md border border-stone-400 shadow-sm focus:border-teal-500 focus:ring-teal-500 p-2" required>
+                        </div>
+                        <div>
+                            <label for="new-book-author" class="block text-sm font-medium text-stone-700">저자</label>
+                            <input type="text" id="new-book-author" class="mt-1 block w-full rounded-md border border-stone-400 shadow-sm focus:border-teal-500 focus:ring-teal-500 p-2" required>
+                        </div>
+                        <div>
+                            <label for="new-book-publisher" class="block text-sm font-medium text-stone-700">출판사</label>
+                            <input type="text" id="new-book-publisher" class="mt-1 block w-full rounded-md border border-stone-400 shadow-sm focus:border-teal-500 focus:ring-teal-500 p-2">
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center">
+                                <label for="new-book-category-select" class="block text-sm font-medium text-stone-700">분야</label>
+                                <button id="manage-categories-btn" class="text-xs text-blue-600 hover:underline">분야 관리</button>
+                            </div>
+                            <div class="flex gap-2 mt-1">
+                                <select id="new-book-category-select" class="flex-grow w-full rounded-md border border-stone-400 shadow-sm focus:border-teal-500 focus:ring-teal-500 p-2"></select>
+                                <input type="text" id="new-book-category-input" class="hidden w-full rounded-md border border-stone-400 shadow-sm focus:border-teal-500 focus:ring-teal-500 p-2" placeholder="새 분야 입력">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="new-book-guide" class="block text-sm font-medium text-stone-700">간단한 설명/메모</label>
+                            <textarea id="new-book-guide" rows="3" class="mt-1 block w-full rounded-md border border-stone-400 shadow-sm focus:border-teal-500 focus:ring-teal-500 p-2"></textarea>
+                        </div>
+                        <div>
+                            <label for="new-book-cover" class="block text-sm font-medium text-stone-700">책 표지 이미지(URL)</label>
+                            <input type="url" id="new-book-cover" class="mt-1 block w-full rounded-md border border-stone-400 shadow-sm focus:border-teal-500 focus:ring-teal-500 p-2" placeholder="https://example.com/cover.jpg">
+                            <p class="text-xs text-stone-400 mt-1">이미지 주소(URL) 입력. (직접 업로드는 지원하지 않음)</p>
+                        </div>
+                    </div>
+                    <div class="mt-8 flex justify-end gap-3">
+                        <button id="add-book-cancel-btn" class="px-4 py-2 bg-stone-200 text-stone-700 rounded-lg hover:bg-stone-300 transition">취소</button>
+                        <button id="add-book-save-btn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">저장하기</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Management Modal -->
+        <div id="category-modal-backdrop" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden"></div>
+        <div id="category-modal" class="fixed inset-0 flex items-center justify-center p-4 z-50 hidden">
+            <div id="category-modal-content" class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">분야 관리</h2>
+                        <button id="category-modal-close-btn" class="text-2xl font-bold text-stone-500 hover:text-stone-800">&times;</button>
+                    </div>
+                    <div id="category-list" class="space-y-2 max-h-64 overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const initialBookData = [
+            { id: 1, stage: 1, title: '피노키오의 모험', author: '카를로 콜로디', publisher: '비룡소 (어스본)', category: '외국문학', guide: '단순한 동화를 넘어 인간의 성장과 선택에 대한 깊은 성찰을 담고 있어 어른에게도 큰 울림을 줍니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 2, stage: 1, title: '허생전', author: '박지원', publisher: '삼성출판사', category: '한국문학', guide: '짧지만 강렬한 풍자와 비판이 담긴 한문 단편소설입니다. 조선 후기 사회의 모습과 실학사상을 엿볼 수 있습니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 3, stage: 1, title: '춘향전', author: '작자 미상', publisher: '민음사', category: '한국문학', guide: '한국인이 가장 사랑하는 고전 소설 중 하나로, 신분을 뛰어넘는 사랑과 사회에 대한 저항 정신을 느낄 수 있습니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 4, stage: 1, title: '구운몽', author: '김만중', publisher: '민음사', category: '한국문학', guide: '인생의 덧없음과 꿈의 의미를 환상적인 구조로 풀어낸 고전 소설의 정수입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 5, stage: 1, title: '필경사 바틀비', author: '허먼 멜빌', publisher: '문학동네', category: '외국문학', guide: '"안 하는 편을 택하겠습니다"라는 유명한 문장으로 자본주의 사회 속 인간 소외 문제를 날카롭게 파고드는 중편소설입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 6, stage: 1, title: '상록수', author: '심훈', publisher: '소담출판사', category: '한국문학', guide: '1930년대 농촌계몽운동을 배경으로 젊은이들의 이상과 헌신을 그린 감동적인 이야기입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 7, stage: 1, title: '설국', author: '가와바타 야스나리', publisher: '민음사', category: '외국문학', guide: '노벨문학상 수상작으로, 허무와 탐미의 세계를 감각적이고 아름다운 문체로 그려낸 작품입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 8, stage: 1, title: '이방인', author: '알베르 카뮈', publisher: '민음사', category: '외국문학', guide: '부조리한 세상 속에서 이방인으로 살아가는 한 인간의 모습을 통해 실존의 의미를 묻는 현대 문학의 고전입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 9, stage: 1, title: '관촌수필', author: '이문구', publisher: '창비', category: '한국문학', guide: '사라져가는 농촌 공동체의 모습을 따뜻하고 해학적인 언어로 담아낸 자전적 소설입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 10, stage: 1, title: '고전시가선집', author: '편집부 엮음', publisher: '창비', category: '한국문학', guide: '향가, 고려가요, 시조 등 우리 고전 시가의 아름다움을 느낄 수 있는 입문서입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 11, stage: 1, title: '정지용 전집', author: '정지용', publisher: '문학과지성사', category: '한국문학', guide: '한국 현대시의 감각적인 언어를 개척한 정지용 시인의 시 세계를 만날 수 있습니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 12, stage: 1, title: '백석 시 전집', author: '백석', publisher: '창비', category: '한국문학', guide: '토속적인 언어와 애틋한 정서로 많은 사랑을 받는 백석 시인의 시를 총망라한 시집입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 13, stage: 1, title: '광장', author: '최인훈', publisher: '문학과지성사', category: '한국문학', guide: '남북 분단의 비극 속에서 진정한 이념과 삶의 공간을 찾아 고뇌하는 지식인의 모습을 그렸습니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 14, stage: 1, title: '죄와 벌', author: '표도르 도스토옙스키', publisher: '민음사', category: '외국문학', guide: '가난한 청년의 범죄와 심리를 통해 죄와 구원, 인간 내면의 선과 악을 깊이 탐구하는 대작입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 15, stage: 1, title: '돈키호테', author: '미겔 데 세르반테스', publisher: '열린책들', category: '외국문학', guide: '현실과 이상의 괴리 속에서도 자신만의 정의를 추구하는 기사의 유쾌하고도 슬픈 모험 이야기입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 16, stage: 1, title: '토지', author: '박경리', publisher: '마로니에북스', category: '한국문학', guide: '구한말부터 해방까지, 격동의 한국 근현대사를 살아간 민중의 삶을 장대하게 그려낸 대하소설입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 17, stage: 1, title: '셰익스피어 4대 비극', author: '윌리엄 셰익스피어', publisher: '민음사', category: '외국문학', guide: '『햄릿』, 『오셀로』, 『리어왕』, 『맥베스』. 인간의 욕망, 질투, 복수 등 보편적인 감정을 다룬 불멸의 고전입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 18, stage: 1, title: '파우스트', author: '요한 볼프강 폰 괴테', publisher: '민음사', category: '외국문학', guide: '선과 악, 지식과 구원의 문제를 다룬 독일 문학의 최고 걸작으로, 평생에 걸쳐 읽어볼 만한 가치가 있습니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 19, stage: 2, title: '난중일기', author: '이순신', publisher: '민음사', category: '역사', guide: '전쟁이라는 극한 상황 속에서 나라를 구한 영웅의 인간적인 고뇌와 리더십을 생생하게 느낄 수 있습니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 20, stage: 2, title: '백범일지', author: '김구', publisher: '돌베개', category: '역사', guide: '독립을 위해 평생을 바친 김구 선생의 삶을 통해 격동의 근대사와 민족의 미래에 대한 고민을 엿볼 수 있습니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 21, stage: 2, title: '한중록', author: '혜경궁 홍씨', publisher: '문학동네', category: '역사', guide: '사도세자의 비극을 아내이자 어머니의 시선으로 기록한 궁중문학의 백미로, 역사적 사건 이면의 인간 드라마를 보여줍니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 22, stage: 2, title: '삼국유사', author: '일연', publisher: '민음사', category: '역사', guide: '단군 신화를 비롯한 우리 고대의 신화와 설화가 가득 담겨 있어, 『삼국사기』와는 다른 역사의 재미를 선사합니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 23, stage: 2, title: '삼국사기', author: '김부식', publisher: '동아출판', category: '역사', guide: '현존하는 가장 오래된 우리 역사서로, 고구려, 백제, 신라의 역사를 국가의 관점에서 체계적으로 정리했습니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 24, stage: 2, title: '한국통사', author: '박은식', publisher: '범우사', category: '역사', guide: "'통사(痛史)'라는 제목처럼, 나라를 잃은 아픔 속에서 민족의 역사를 정리한 책입니다.", startDate: null, completionDate: null, memos: [] },
+            { id: 25, stage: 2, title: '사기열전', author: '사마천', publisher: '민음사', category: '역사', guide: "다양한 인간 군상의 삶을 생동감 있게 그려내 '인간학의 보고'라 불립니다. 역사 속 인물들의 성공과 실패를 통해 삶의 지혜를 얻을 수 있습니다.", startDate: null, completionDate: null, memos: [] },
+            { id: 26, stage: 2, title: '역사', author: '헤로도토스', publisher: '도서출판 숲', category: '역사', guide: "'역사의 아버지' 헤로도토스가 페르시아 전쟁을 중심으로 고대 세계의 다양한 문화와 역사를 흥미롭게 기록한 책입니다.", startDate: null, completionDate: null, memos: [] },
+            { id: 27, stage: 2, title: '파한집', author: '이인로', publisher: '신원문화사', category: '한국문학', guide: '고려 시대 문인이 쓴 우리나라 최초의 문학 비평서로, 당시의 시와 인물에 대한 흥미로운 이야기들이 담겨 있습니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 28, stage: 3, title: '목민심서', author: '정약용', publisher: '창비', category: '사상', guide: '목민관, 즉 공직자가 갖춰야 할 마음가짐과 실무를 다룬 책이지만, 오늘날 리더의 역할과 공동체의 윤리를 생각하게 합니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 29, stage: 3, title: '자유론', author: '존 스튜어트 밀', publisher: '책세상', category: '사상', guide: '개인의 자유가 왜 중요한지, 그 범위는 어디까지인지에 대해 명쾌하게 설명하는 자유주의 사상의 교과서입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 30, stage: 3, title: '군주론', author: '니콜로 마키아벨리', publisher: '까치', category: '사상', guide: '권력의 본질과 통치 기술을 냉철하게 분석하여 오늘날까지 수많은 논쟁을 낳고 있는 정치학의 고전입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 31, stage: 3, title: '국부론', author: '애덤 스미스', publisher: '비봉출판사', category: '사상', guide: "'보이지 않는 손'으로 유명한 고전 경제학의 출발점. 시장 경제의 원리를 이해하기 위한 필독서입니다.", startDate: null, completionDate: null, memos: [] },
+            { id: 32, stage: 3, title: '프로테스탄티즘의 윤리와 자본주의의 정신', author: '막스 베버', publisher: '문예출판사', category: '사상', guide: '근면, 성실이라는 종교적 윤리가 어떻게 자본주의 발전의 정신적 토대가 되었는지를 분석합니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 33, stage: 3, title: '슬픈 열대', author: '클로드 레비스트로스', publisher: '한길사', category: '사상', guide: '서구 문명의 시선에서 벗어나 아마존 원주민 사회를 기록한 구조주의 인류학의 명저입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 34, stage: 3, title: '미디어의 이해', author: '마셜 매클루언', publisher: '커뮤니케이션북스', category: '사상', guide: '"미디어는 메시지다"라는 명제로, 미디어가 우리 사회와 사고방식을 어떻게 변화시키는지를 설명합니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 35, stage: 3, title: '인간의 조건', author: '한나 아렌트', publisher: '한길사', category: '사상', guide: '노동, 작업, 행위라는 인간의 세 가지 활동을 통해 인간다운 삶의 조건이 무엇인지 탐구하는 현대 철학의 고전입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 36, stage: 3, title: '프랑스 혁명에 관한 성찰', author: '에드먼드 버크', publisher: '한길사', category: '사상', guide: '급진적인 혁명의 위험성을 경고하며 점진적 개혁의 중요성을 역설한 보수주의 정치철학의 원전입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 37, stage: 3, title: '담론과 문학', author: '(주제)', publisher: '해당 없음', category: '사상', guide: '특정 책이 아닌 주제입니다. 미셸 푸코의 저작처럼, 문학 작품이 어떻게 사회적 담론을 형성하고 영향을 받는지 탐구하는 분야를 의미합니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 38, stage: 3, title: '증언의 사회학', author: '(주제)', publisher: '해당 없음', category: '사상', guide: '특정 책이 아닌 주제입니다. 개인의 증언이 어떻게 사회적 진실을 구성하고 역사를 기록하는지를 다루는 사회학 분야를 가리킵니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 39, stage: 3, title: '한반도와 주변 4강', author: '(주제)', publisher: '을유문화사', category: '사상', guide: '특정 책이 아닌 주제입니다. 한반도를 둘러싼 미국, 중국, 일본, 러시아의 국제 관계와 외교 정책을 분석하는 분야의 책들을 의미합니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 40, stage: 4, title: '논어', author: '공자', publisher: '홍익출판사', category: '사상', guide: '2500년이 지난 지금도 삶의 지표가 되는 공자의 가르침. 사람다움(仁)과 관계의 예(禮)에 대해 배울 수 있습니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 41, stage: 4, title: '맹자', author: '맹자', publisher: '홍익출판사', category: '사상', guide: '인간의 선한 본성과 왕도정치를 역설한 맹자의 사상을 통해 정의와 리더십의 의미를 되새겨볼 수 있습니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 42, stage: 4, title: '대학', author: '증자', publisher: '민음사', category: '사상', guide: '수신제가치국평천하(修身齊家治國平天下)의 원리를 설명하는 유교의 핵심 경전입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 43, stage: 4, title: '장자', author: '장자', publisher: '길', category: '사상', guide: '고정관념에서 벗어나 자유로운 삶을 이야기하는 도가 사상의 정수. 상상력과 유머가 가득합니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 44, stage: 4, title: '다산문선', author: '정약용', publisher: '창비', category: '사상', guide: '실학사상을 집대성한 다산 정약용의 방대한 저술 중에서 핵심적인 글들을 모아 엮은 책입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 45, stage: 4, title: '성학십도', author: '이황', publisher: '홍익출판사', category: '사상', guide: '퇴계 이황이 임금에게 올린 성리학의 핵심 요약서. 열 개의 그림으로 성리학의 체계를 설명합니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 46, stage: 4, title: '격몽요결', author: '이이', publisher: '서해문집', category: '사상', guide: '율곡 이이가 학문을 시작하는 이들을 위해 쓴 수양서로, 올바른 마음가짐과 공부법을 제시합니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 47, stage: 4, title: '의산문답', author: '홍대용', publisher: '아카넷', category: '사상', guide: '조선 후기 실학자의 과학 사상을 담은 책으로, 지동설과 우주무한론 등 시대를 앞서간 생각을 엿볼 수 있습니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 48, stage: 4, title: '국가', author: '플라톤', publisher: '서광사', category: '사상', guide: '정의로운 국가란 무엇이며, 이상적인 통치자는 누구인가에 대한 플라톤의 생각을 담은 서양 철학의 원천입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 49, stage: 4, title: '방법서설', author: '르네 데카르트', publisher: '문예출판사', category: '사상', guide: '"나는 생각한다, 고로 존재한다." 모든 것을 의심하며 확실한 지식의 토대를 찾으려는 근대 철학의 출발점입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 50, stage: 4, title: '정부론', author: '존 로크', publisher: '까치', category: '사상', guide: '사회계약과 시민의 저항권을 주장하며 근대 민주주의 사상의 토대를 마련한 책입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 51, stage: 4, title: '실천이성비판', author: '임마누엘 칸트', publisher: '아카넷', category: '사상', guide: '"네 의지의 준칙이 항상 동시에 보편적 법칙의 원리가 될 수 있도록 행위하라." 칸트 윤리학의 핵심을 담고 있습니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 52, stage: 4, title: '꿈의 해석', author: '지크문트 프로이트', publisher: '열린책들', category: '사상', guide: '꿈을 통해 인간의 무의식 세계를 탐구하며 정신분석학의 문을 연 기념비적인 저작입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 53, stage: 4, title: '자본론', author: '카를 마르크스', publisher: '비봉출판사', category: '사상', guide: '자본주의 체제의 작동 원리와 그 문제점을 과학적으로 분석한 책으로, 현대 사회를 이해하는 데 필수적인 고전입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 54, stage: 4, title: '이기론과 한국사상', author: '(주제)', publisher: '해당 없음', category: '사상', guide: '특정 책이 아닌 주제입니다. 이(理)와 기(氣)의 관계를 통해 우주와 인간을 설명하려 했던 한국 성리학의 핵심 논쟁을 다루는 분야입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 55, stage: 5, title: '종의 기원', author: '찰스 다윈', publisher: '동서문화사', category: '과학', guide: '자연선택을 통한 진화라는 혁명적인 아이디어로 생명과 세계에 대한 우리의 이해를 완전히 바꾼 과학사의 고전입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 56, stage: 5, title: '과학혁명의 구조', author: '토머스 쿤', publisher: '까치', category: '과학', guide: "과학이 점진적으로 발전하는 것이 아니라 '패러다임의 전환'을 통해 혁명적으로 변화한다는 주장을 담고 있습니다.", startDate: null, completionDate: null, memos: [] },
+            { id: 57, stage: 5, title: '이기적 유전자', author: '리처드 도킨스', publisher: '을유문화사', category: '과학', guide: '생명의 진화를 유전자의 관점에서 설명하며 전 세계적인 논쟁을 불러일으킨 현대의 고전입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 58, stage: 5, title: '부분과 전체', author: '베르너 하이젠베르크', publisher: '서커스출판상회', category: '과학', guide: '양자역학의 거두인 하이젠베르크가 동료 과학자들과 나눈 대화를 통해 과학과 철학, 인생에 대해 성찰하는 책입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 59, stage: 5, title: '엔트로피', author: '제러미 리프킨', publisher: '세종연구원', category: '과학', guide: '열역학 제2법칙인 엔트로피 개념을 통해 현대 산업 문명의 위기를 진단하고 새로운 세계관을 제시합니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 60, stage: 5, title: '페르마의 마지막 정리', author: '사이먼 싱', publisher: '영림카디널', category: '과학', guide: '350년간 풀리지 않았던 수학 난제를 해결하기 위한 수학자들의 열정과 도전을 흥미진진하게 그린 논픽션입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 61, stage: 5, title: '카오스', author: '제임스 글릭', publisher: '동아시아', category: '과학', guide: "나비의 날갯짓이 태풍을 일으킬 수 있다는 '나비 효과'로 유명한 카오스 이론을 대중에게 소개한 책입니다.", startDate: null, completionDate: null, memos: [] },
+            { id: 62, stage: 5, title: '신기관', author: '프랜시스 베이컨', publisher: '한길사', category: '과학', guide: '관찰과 실험을 중시하는 경험주의적 과학 방법론을 제시하며 근대 과학의 문을 연 책입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 63, stage: 5, title: '같기도 하고 아니 같기도 하고', author: '로얼드 호프만', publisher: '까치', category: '과학', guide: '노벨 화학상 수상자가 화학의 본질과 아름다움을 시적인 언어로 풀어낸 독특한 과학 교양서입니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 64, stage: 5, title: '객관성의 칼날', author: '찰스 길리스피', publisher: '새물결', category: '과학', guide: '과학사의 주요 논쟁들을 통해 과학 지식이 어떻게 형성되고 발전해왔는지를 보여줍니다.', startDate: null, completionDate: null, memos: [] },
+            { id: 65, stage: 5, title: '과학기초', author: '(주제)', publisher: '해당 없음', category: '과학', guide: '특정 책이 아닌 주제입니다. 서울대학교 출판문화원의 『과학고전선집』처럼, 과학사의 기초를 이루는 주요 고전들을 엮은 책들을 의미합니다.', startDate: null, completionDate: null, memos: [] }
+        ];
+
+        let bookData = [];
+        let currentEditingBookId = null;
+        let activeSourceFilter = 'All';
+        let activeCategoryFilter = 'All';
+        let activeStageFilter = '1'; // Default stage filter
+        let activeStatusFilter = 'All';
+
+        const stageInfo = {
+            0: { name: '나의 서재: 직접 추가한 책들', description: '내가 직접 추가하여 관리하는 도서 목록입니다.' },
+            1: { name: '1단계: 문학의 숲에 첫발 내딛기', description: '독서의 즐거움을 느끼고 꾸준한 습관을 만드는 단계입니다. 비교적 접근하기 쉬운 소설과 시를 통해 이야기의 재미에 빠져보세요.' },
+            2: { name: '2단계: 역사 속 인물과 세상 만나기', description: '문학을 통해 돋운 흥미를 바탕으로 실제 역사와 인물 이야기로 관심사를 넓혀가는 단계입니다. 역사를 통해 현재를 이해하는 시각을 기를 수 있습니다.' },
+            3: { name: '3단계: 사회를 보는 눈 키우기', description: '개인의 삶을 넘어 우리가 사는 사회의 구조와 작동 원리에 대해 고민해보는 단계입니다. 정치, 경제, 사회 등 다양한 분야의 고전을 통해 비판적 사고력을 기릅니다.' },
+            4: { name: '4단계: 생각의 뿌리 탐험하기', description: '다소 어려울 수 있지만, 인류의 지혜가 담긴 핵심 사상들을 직접 만나보는 단계입니다. 세상을 보는 근본적인 시각을 기를 수 있습니다.' },
+            5: { name: '5단계: 과학으로 세상 다시 보기', description: '인문학적 상상력에 과학적 사고방식을 더해 세상을 더욱 입체적으로 이해하는 단계입니다. 생명, 우주, 기술에 대한 위대한 발견들을 만나보세요.' }
+        };
+
+        // 1. 파란색 계열의 작은 책 아이콘 SVG
+const coloredBookIcon = `
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <rect x="4" y="8" width="24" height="16" rx="3" fill="#F4F7FE"/>
+  <rect x="6" y="10" width="10" height="12" rx="2" fill="#E0E7FF"/>
+  <rect x="16" y="10" width="10" height="12" rx="2" fill="#C7D2FE"/>
+  <rect x="15" y="10" width="2" height="12" fill="#A5B4FC"/>
+  <ellipse cx="16" cy="22" rx="2" ry="1" fill="#60A5FA"/>
+</svg>
+`;
+
+        const getStatusIcon = (book) => {
+            if (book.completionDate) return '✅'; // Completed
+            if (book.startDate) return '🔖'; // Reading
+            return '📖'; // To-be-read
+        };
+        
+        const saveData = () => {
+            localStorage.setItem('snuBookTrackerData', JSON.stringify(bookData));
+            const filters = { activeSourceFilter, activeCategoryFilter, activeStageFilter, activeStatusFilter };
+            localStorage.setItem('snuBookTrackerFilters', JSON.stringify(filters));
+        };
+
+        const loadData = () => {
+            const savedData = localStorage.getItem('snuBookTrackerData');
+            if (savedData) {
+                const parsedData = JSON.parse(savedData);
+                bookData = parsedData.map(book => ({...book, memos: book.memos || [], isDeleted: book.isDeleted || false }));
+            } else {
+                bookData = initialBookData;
+            }
+
+            const savedFilters = localStorage.getItem('snuBookTrackerFilters');
+            if(savedFilters) {
+                const parsedFilters = JSON.parse(savedFilters);
+                activeSourceFilter = parsedFilters.activeSourceFilter || 'All';
+                activeCategoryFilter = parsedFilters.activeCategoryFilter || 'All';
+                activeStageFilter = parsedFilters.activeStageFilter || '1';
+                activeStatusFilter = parsedFilters.activeStatusFilter || 'All';
+            }
+        };
+
+        const updateStatistics = () => {
+            const totalBooks = bookData.filter(b => !b.isDeleted).length;
+            const completedCount = bookData.filter(b => b.completionDate && !b.isDeleted).length;
+            const readingCount = bookData.filter(b => b.startDate && !b.completionDate && !b.isDeleted).length;
+            const tbrCount = totalBooks - completedCount - readingCount;
+            const progressPercentage = totalBooks > 0 ? (completedCount / totalBooks) * 100 : 0;
+
+            document.getElementById('completed-count').textContent = completedCount;
+            document.getElementById('reading-count').textContent = readingCount;
+            document.getElementById('tbr-count').textContent = tbrCount;
+            document.getElementById('progress-text').textContent = `${completedCount} / ${totalBooks}`;
+            document.getElementById('progress-bar').style.width = `${progressPercentage}%`;
+        };
+        
+        const applyFilters = () => {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            let filteredBooks = bookData.filter(b => !b.isDeleted);
+
+            // 1. Source Filter
+            if (activeSourceFilter === 'SNU') {
+                filteredBooks = filteredBooks.filter(book => !book.isUserAdded);
+            } else if (activeSourceFilter === 'MyBooks') {
+                filteredBooks = filteredBooks.filter(book => book.isUserAdded);
+            }
+
+            // 2. Category Filter
+            if (activeCategoryFilter !== 'All') {
+                filteredBooks = filteredBooks.filter(book => book.category === activeCategoryFilter);
+            }
+            
+            // 3. Stage Filter
+            if (activeStageFilter !== 'All') {
+                 filteredBooks = filteredBooks.filter(book => book.stage == activeStageFilter);
+            }
+
+            // 4. Status Filter
+            if (activeStatusFilter === 'completed') {
+                filteredBooks = filteredBooks.filter(book => book.completionDate);
+            } else if (activeStatusFilter === 'reading') {
+                filteredBooks = filteredBooks.filter(book => book.startDate && !book.completionDate);
+            } else if (activeStatusFilter === 'tbr') {
+                filteredBooks = filteredBooks.filter(book => !book.startDate && !book.completionDate);
+            }
+
+            // 5. Search Term Filter
+            if (searchTerm) {
+                filteredBooks = filteredBooks.filter(book => 
+                    book.title.toLowerCase().includes(searchTerm) || 
+                    book.author.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            renderBooks(filteredBooks);
+            saveData(); // Save filter state
+        };
+
+        // 2. 도서카드 렌더링 함수만 아래처럼 교체
+const renderBooks = (booksToRender) => {
+    const bookListContainer = document.getElementById('book-list');
+    const groupedByStage = booksToRender.reduce((acc, book) => {
+        (acc[book.stage] = acc[book.stage] || []).push(book);
+        return acc;
+    }, {});
+
+    bookListContainer.innerHTML = '';
+
+    if (Object.keys(groupedByStage).length === 0) {
+        bookListContainer.innerHTML = `<p class="text-center text-stone-500 py-8">표시할 도서가 없습니다.</p>`;
+        return;
+    }
+
+    Object.keys(groupedByStage).sort((a,b) => a-b).forEach(stage => {
+        const stageDiv = document.createElement('div');
+        stageDiv.id = `stage-${stage}`;
+        stageDiv.className = 'scroll-mt-24';
+
+        const stageHeader = `
+            <div class="mb-6">
+                <h3 class="text-2xl font-bold text-teal-700">${stageInfo[stage].name}</h3>
+                <p class="text-stone-600 mt-2">${stageInfo[stage].description}</p>
+            </div>
+        `;
+
+        const booksGrid = document.createElement('div');
+        booksGrid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+
+        groupedByStage[stage].forEach(book => {
+            const bookCard = document.createElement('div');
+            let cardBg = 'bg-stone-100';
+            if (book.completionDate) cardBg = 'bg-teal-50';
+            else if (book.startDate) cardBg = 'bg-amber-50';
+
+            // 제목 옆 상태아이콘: 기록 있을 때만
+            let statusIcon = '';
+            if (book.completionDate) statusIcon = '✅';
+            else if (book.startDate) statusIcon = '🔖';
+
+            // 카드 기본 보더 1px #cfcfce, hover 시 초록색
+            bookCard.className = `book-card ${cardBg} p-4 rounded-lg shadow-sm border border-[#cfcfce] hover:border-green-600 transition-all duration-300 cursor-pointer`;
+
+            // 표지/아이콘 영역
+            let coverHtml = '';
+            if (book.cover) {
+                // 표지 이미지가 있으면 오른쪽에 세로로 크게(제목, 저자, 출판사 3줄 높이와 맞춤)
+                coverHtml = `
+                    <div class="flex items-start h-full">
+                        <div class="flex-1 min-w-0 flex flex-col justify-between">
+                            <div class="flex items-center mb-1">
+                                <h4 class="font-bold text-lg text-stone-800 truncate">${book.title}</h4>
+                                ${statusIcon ? `<span class="ml-2 text-xl">${statusIcon}</span>` : ''}
+                            </div>
+                            <p class="text-stone-600 text-sm truncate">${book.author}</p>
+                            <p class="text-stone-500 text-xs truncate">출판사: ${book.publisher || '정보 없음'}</p>
+                            <p class="text-stone-500 text-xs mt-1 line-clamp-2 flex-grow">${book.guide || '가이드 정보 없음'}</p>
+                        </div>
+                        <div class="flex-shrink-0 flex items-start ml-4">
+                            <img src="${book.cover}" alt="책 표지" class="w-24 h-32 object-cover rounded shadow border border-stone-200" />
+                        </div>
+                    </div>
+                `;
+            } else {
+                // 표지 이미지 없으면 기존 아이콘
+                coverHtml = `
+                    <div class="flex items-start h-full">
+                        <div class="flex-1 min-w-0 flex flex-col justify-between">
+                            <div class="flex items-center mb-1">
+                                <h4 class="font-bold text-lg text-stone-800 truncate">${book.title}</h4>
+                                ${statusIcon ? `<span class="ml-2 text-xl">${statusIcon}</span>` : ''}
+                            </div>
+                            <p class="text-stone-600 text-sm truncate">${book.author}</p>
+                            <p class="text-stone-500 text-xs truncate">출판사: ${book.publisher || '정보 없음'}</p>
+                            <p class="text-stone-500 text-xs mt-1 line-clamp-2 flex-grow">${book.guide || '가이드 정보 없음'}</p>
+                        </div>
+                        <div class="flex-shrink-0 flex items-start ml-4">
+                            <span class="block">${coloredBookIcon}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            bookCard.innerHTML = coverHtml;
+            bookCard.addEventListener('click', () => openModal(book));
+            booksGrid.appendChild(bookCard);
+        });
+
+        stageDiv.innerHTML = stageHeader;
+        stageDiv.appendChild(booksGrid);
+        bookListContainer.appendChild(stageDiv);
+    });
+};
+
+        const openModal = (book) => {
+            currentEditingBookId = book.id;
+            document.getElementById('modal-stage').textContent = stageInfo[book.stage].name;
+            document.getElementById('modal-title').textContent = book.title;
+            document.getElementById('modal-author').textContent = book.author;
+            document.getElementById('modal-guide').textContent = book.guide;
+            document.getElementById('modal-publisher').textContent = `대표 출판사: ${book.publisher}`;
+            document.getElementById('start-date').value = book.startDate || '';
+            document.getElementById('completion-date').value = book.completionDate || '';
+
+            // 표지 이미지 영역 추가
+            let coverHtml = '';
+            if (book.cover) {
+                coverHtml = `<img src="${book.cover}" alt="책 표지" class="w-32 h-44 object-cover rounded shadow border border-stone-200 mx-auto mb-4" />`;
+            } else {
+                coverHtml = `<div class="flex justify-center mb-4">
+                    <svg class="w-16 h-16 text-stone-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-width="2"/><path d="M8 4v16M16 4v16" stroke-width="2"/></svg>
+                </div>`;
+            }
+            // 표지 이미지를 모달 내용 최상단에 동적으로 삽입
+            const modalContent = document.getElementById('modal-content').querySelector('.p-6.md\\:p-8.overflow-y-auto');
+            if (modalContent) {
+                let oldCover = modalContent.querySelector('.modal-cover-image');
+                if (oldCover) oldCover.remove();
+                const coverDiv = document.createElement('div');
+                coverDiv.className = 'modal-cover-image';
+                coverDiv.innerHTML = coverHtml;
+                modalContent.insertBefore(coverDiv, modalContent.firstChild);
+            }
+
+            renderMemos(book.memos);
+
+            const modal = document.getElementById('modal');
+            const modalBackdrop = document.getElementById('modal-backdrop');
+            const modalContentDiv = document.getElementById('modal-content');
+            
+            modal.classList.remove('hidden');
+            modalBackdrop.classList.remove('hidden');
+            modalContentDiv.classList.remove('modal-leave-active', 'modal-enter');
+            modalBackdrop.classList.remove('backdrop-leave-active', 'backdrop-enter');
+            
+            requestAnimationFrame(() => {
+                modalContentDiv.classList.add('modal-enter-active');
+                modalBackdrop.classList.add('backdrop-enter-active');
+            });
+        };
+
+        const closeModal = () => {
+            const modal = document.getElementById('modal');
+            const modalBackdrop = document.getElementById('modal-backdrop');
+            const modalContent = document.getElementById('modal-content');
+
+            modalContent.classList.replace('modal-enter-active', 'modal-leave-active');
+            modalBackdrop.classList.replace('backdrop-enter-active', 'backdrop-leave-active');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modalBackdrop.classList.add('hidden');
+                currentEditingBookId = null;
+            }, 200);
+        };
+
+        const openAddBookModal = () => {
+            populateCategorySelect();
+
+            const modal = document.getElementById('add-book-modal');
+            const modalBackdrop = document.getElementById('add-book-modal-backdrop');
+            const modalContent = document.getElementById('add-book-modal-content');
+            modal.classList.remove('hidden');
+            modalBackdrop.classList.remove('hidden');
+            modalContent.classList.remove('modal-leave-active', 'modal-enter');
+            modalBackdrop.classList.remove('backdrop-leave-active', 'backdrop-enter');
+            requestAnimationFrame(() => {
+                modalContent.classList.add('modal-enter-active');
+                modalBackdrop.classList.add('backdrop-enter-active');
+            });
+        };
+
+        const closeAddBookModal = () => {
+            const modal = document.getElementById('add-book-modal');
+            const modalBackdrop = document.getElementById('add-book-modal-backdrop');
+            const modalContent = document.getElementById('add-book-modal-content');
+            modalContent.classList.replace('modal-enter-active', 'modal-leave-active');
+            modalBackdrop.classList.replace('backdrop-enter-active', 'backdrop-leave-active');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modalBackdrop.classList.add('hidden');
+            }, 200);
+        };
+
+        const handleSaveDates = () => {
+            if (currentEditingBookId === null) return;
+            const bookIndex = bookData.findIndex(b => b.id === currentEditingBookId);
+            if (bookIndex === -1) return;
+
+            const startDate = document.getElementById('start-date').value;
+            const completionDate = document.getElementById('completion-date').value;
+
+            bookData[bookIndex].startDate = startDate || null;
+            bookData[bookIndex].completionDate = completionDate || null;
+            
+            saveData();
+            updateStatistics();
+            applyFilters();
+            closeModal();
+        };
+        
+        const handleAddNewBook = () => {
+            const title = document.getElementById('new-book-title').value.trim();
+            const author = document.getElementById('new-book-author').value.trim();
+            if (!title || !author) {
+                alert('제목과 저자는 필수 항목입니다.');
+                return;
+            }
+            const bookType = document.querySelector('input[name="book-type"]:checked').value;
+            let stage = 0;
+            let isUserAdded = true;
+            if (bookType === 'snu') {
+                stage = parseInt(document.getElementById('new-book-stage').value, 10);
+                isUserAdded = false;
+            }
+            let category = document.getElementById('new-book-category-select').value;
+            if (category === 'add-new') {
+                category = document.getElementById('new-book-category-input').value.trim();
+                if (!category) {
+                    alert('새 분야를 입력해주세요.');
+                    return;
+                }
+            }
+            const cover = document.getElementById('new-book-cover').value.trim();
+
+            const newBook = {
+                id: Date.now(),
+                stage: stage,
+                title: title,
+                author: author,
+                publisher: document.getElementById('new-book-publisher').value.trim(),
+                category: category,
+                guide: document.getElementById('new-book-guide').value.trim(),
+                cover: cover || '', // 표지 이미지 URL 저장
+                startDate: null,
+                completionDate: null,
+                memos: [],
+                isUserAdded: isUserAdded,
+                isDeleted: false
+            };
+
+            bookData.push(newBook);
+            saveData();
+            updateStatistics();
+            setupFilterDropdowns();
+            applyFilters();
+            closeAddBookModal();
+
+            // Clear form
+            document.getElementById('new-book-title').value = '';
+            document.getElementById('new-book-author').value = '';
+            document.getElementById('new-book-publisher').value = '';
+            document.getElementById('new-book-guide').value = '';
+            document.getElementById('new-book-category-input').value = '';
+            document.getElementById('new-book-category-input').classList.add('hidden');
+            document.getElementById('new-book-category-select').classList.remove('hidden');
+            document.getElementById('new-book-cover').value = '';
+        };
+
+        const renderMemos = (memos) => {
+            const memoList = document.getElementById('memo-list');
+            memoList.innerHTML = '';
+            if (!memos || memos.length === 0) {
+                memoList.innerHTML = `<p class="text-center text-sm text-stone-400">아직 기록된 노트가 없습니다.</p>`;
+                return;
+            }
+
+            memos.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(memo => {
+                const memoEl = document.createElement('div');
+                memoEl.className = 'bg-stone-100 p-3 rounded-lg';
+                memoEl.innerHTML = `
+                    <p class="text-stone-700">${memo.content}</p>
+                    <div class="text-xs text-stone-500 mt-2 flex justify-between items-center">
+                        <span>${new Date(memo.date).toLocaleDateString()}</span>
+                        <div>
+                            <button class="edit-memo-btn text-blue-600 hover:underline" data-memo-id="${memo.id}">수정</button>
+                            <button class="delete-memo-btn text-red-600 hover:underline ml-2" data-memo-id="${memo.id}">삭제</button>
+                        </div>
+                    </div>
+                `;
+                memoList.appendChild(memoEl);
+            });
+
+            document.querySelectorAll('.delete-memo-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => handleDeleteMemo(e.target.dataset.memoId));
+            });
+            document.querySelectorAll('.edit-memo-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => handleEditMemo(e.target.dataset.memoId, e.target.closest('.bg-stone-100')));
+            });
+        };
+
+        const handleAddMemo = () => {
+            const memoInput = document.getElementById('memo-input');
+            const content = memoInput.value.trim();
+            if (!content || currentEditingBookId === null) return;
+
+            const book = bookData.find(b => b.id === currentEditingBookId);
+            const newMemo = {
+                id: Date.now().toString(),
+                date: new Date().toISOString(),
+                content: content
+            };
+            book.memos.push(newMemo);
+            saveData();
+            renderMemos(book.memos);
+            memoInput.value = '';
+        };
+
+        const handleDeleteMemo = (memoId) => {
+            const book = bookData.find(b => b.id === currentEditingBookId);
+            book.memos = book.memos.filter(m => m.id !== memoId);
+            saveData();
+            renderMemos(book.memos);
+        };
+
+        const handleEditMemo = (memoId, memoElement) => {
+            const memo = bookData.find(b => b.id === currentEditingBookId).memos.find(m => m.id === memoId);
+            const p = memoElement.querySelector('p');
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = memo.content;
+            input.className = 'w-full p-1 border rounded';
+
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = '저장';
+            saveBtn.className = 'text-green-600 hover:underline';
+            saveBtn.onclick = () => handleSaveMemo(memoId, input.value, memoElement);
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = '취소';
+            cancelBtn.className = 'text-stone-600 hover:underline ml-2';
+            cancelBtn.onclick = () => renderMemos(bookData.find(b => b.id === currentEditingBookId).memos);
+
+            p.replaceWith(input);
+            input.focus();
+            memoElement.querySelector('.flex.justify-between div').innerHTML = '';
+            memoElement.querySelector('.flex.justify-between div').append(saveBtn, cancelBtn);
+        };
+
+        const handleSaveMemo = (memoId, newContent) => {
+            const book = bookData.find(b => b.id === currentEditingBookId);
+            const memo = book.memos.find(m => m.id === memoId);
+            memo.content = newContent;
+            saveData();
+            renderMemos(book.memos);
+        };
+
+        const setupFilterDropdowns = () => {
+            const sourceDD = document.getElementById('source-filter-dropdown');
+            const categoryDD = document.getElementById('category-filter-dropdown');
+            const stageDD = document.getElementById('stage-filter-dropdown');
+
+            // Source Dropdown
+            sourceDD.innerHTML = `
+                <option value="All">출처: 전체</option>
+                <option value="SNU">서울대 추천</option>
+                <option value="MyBooks">내가 추가한 책</option>
+            `;
+            sourceDD.value = activeSourceFilter;
+
+            // Category Dropdown
+            const categories = ['종교', ...new Set(bookData.map(b => b.category))].filter(Boolean);
+            categoryDD.innerHTML = `<option value="All">분야: 전체</option>`;
+            [...new Set(categories)].forEach(cat => {
+                categoryDD.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+            categoryDD.value = activeCategoryFilter;
+
+            // Stage Dropdown
+            stageDD.innerHTML = `<option value="All">단계: 전체</option>`;
+            Object.keys(stageInfo).filter(key => key > 0).forEach(key => {
+                 stageDD.innerHTML += `<option value="${key}">${stageInfo[key].name}</option>`;
+            });
+            stageDD.value = activeStageFilter;
+        };
+        
+        const populateCategorySelect = () => {
+            const categorySelect = document.getElementById('new-book-category-select');
+            const categories = ['종교', ...new Set(bookData.map(b => b.category))].filter(c => c && c !== '(주제)');
+            categorySelect.innerHTML = [...new Set(categories)].map(c => `<option value="${c}">${c}</option>`).join('');
+            categorySelect.innerHTML += `<option value="add-new">직접 추가...</option>`;
+        };
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            
+            const searchInput = document.getElementById('search-input');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+            const modalBackdrop = document.getElementById('modal-backdrop');
+            const saveDatesBtn = document.getElementById('save-dates-btn');
+            const addMemoBtn = document.getElementById('add-memo-btn');
+            const addNewBookBtn = document.getElementById('add-new-book-btn-header');
+            const addBookModalCloseBtn = document.getElementById('add-book-modal-close-btn');
+            const addBookModalBackdrop = document.getElementById('add-book-modal-backdrop');
+            const addBookCancelBtn = document.getElementById('add-book-cancel-btn');
+            const addBookSaveBtn = document.getElementById('add-book-save-btn');
+            
+            const statisticsToggle = document.getElementById('statistics-toggle');
+            const statisticsContent = document.getElementById('statistics-content');
+            const statisticsArrow = document.getElementById('statistics-arrow');
+            
+            const dashboardToggle = document.getElementById('dashboard-toggle');
+            const dashboardContent = document.getElementById('dashboard-content');
+            const dashboardArrow = document.getElementById('dashboard-arrow');
+
+            const sourceFilterDD = document.getElementById('source-filter-dropdown');
+            const categoryFilterDD = document.getElementById('category-filter-dropdown');
+            const stageFilterDD = document.getElementById('stage-filter-dropdown');
+            
+            const newBookCategorySelect = document.getElementById('new-book-category-select');
+            const newBookCategoryInput = document.getElementById('new-book-category-input');
+
+            searchInput.addEventListener('input', applyFilters);
+            sourceFilterDD.addEventListener('change', (e) => { activeSourceFilter = e.target.value; applyFilters(); });
+            categoryFilterDD.addEventListener('change', (e) => { activeCategoryFilter = e.target.value; applyFilters(); });
+            stageFilterDD.addEventListener('change', (e) => { activeStageFilter = e.target.value; applyFilters(); });
+
+            // Status filter listeners
+            document.querySelectorAll('.status-filter').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    const currentTarget = e.currentTarget;
+                    const status = currentTarget.id.split('-')[2];
+                    
+                    if (currentTarget.classList.contains('active')) {
+                        activeStatusFilter = 'All';
+                        currentTarget.classList.remove('active');
+                    } else {
+                        document.querySelectorAll('.status-filter').forEach(elem => elem.classList.remove('active'));
+                        activeStatusFilter = status;
+                        currentTarget.classList.add('active');
+                    }
+                    applyFilters();
+                });
+            });
+            
+            // Details Modal listeners
+            modalCloseBtn.addEventListener('click', closeModal);
+            modalBackdrop.addEventListener('click', closeModal);
+            saveDatesBtn.addEventListener('click', handleSaveDates);
+            addMemoBtn.addEventListener('click', handleAddMemo);
+            document.getElementById('memo-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleAddMemo();
+            });
+
+            // Add Book Modal listeners
+            addNewBookBtn.addEventListener('click', openAddBookModal);
+            addBookModalCloseBtn.addEventListener('click', closeAddBookModal);
+            addBookModalBackdrop.addEventListener('click', closeAddBookModal);
+            addBookCancelBtn.addEventListener('click', closeAddBookModal);
+            addBookSaveBtn.addEventListener('click', handleAddNewBook);
+            document.querySelectorAll('input[name="book-type"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    const stageContainer = document.getElementById('new-book-stage-container');
+                    if (e.target.value === 'snu') {
+                        stageContainer.classList.remove('hidden');
+                    } else {
+                        stageContainer.classList.add('hidden');
+                    }
+                });
+            });
+            newBookCategorySelect.addEventListener('change', (e) => {
+                if (e.target.value === 'add-new') {
+                    newBookCategorySelect.classList.add('hidden');
+                    newBookCategoryInput.classList.remove('hidden');
+                    newBookCategoryInput.focus();
+                } else {
+                    newBookCategorySelect.classList.remove('hidden');
+                    newBookCategoryInput.classList.add('hidden');
+                }
+            });
+
+            // Accordion listeners
+            statisticsToggle.addEventListener('click', () => {
+                statisticsContent.classList.toggle('open');
+                statisticsArrow.classList.toggle('rotate-180');
+            });
+            dashboardToggle.addEventListener('click', () => {
+                dashboardContent.classList.toggle('open');
+                dashboardArrow.classList.toggle('rotate-180');
+            });
+            
+
+            const setupCharts = () => {
+                const officialBooks = bookData.filter(b => !b.isUserAdded);
+                if (officialBooks.length === 0) return;
+
+                const stageCounts = officialBooks.reduce((acc, book) => {
+                    const stageName = `Stage ${book.stage}`;
+                    acc[stageName] = (acc[stageName] || 0) + 1;
+                    return acc;
+                }, {});
+
+                const categoryCounts = officialBooks.reduce((acc, book) => {
+                    acc[book.category] = (acc[book.category] || 0) + 1;
+                    return acc;
+                }, {});
+
+                const stageChartCtx = document.getElementById('stageChart').getContext('2d');
+                new Chart(stageChartCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(stageCounts).map(key => stageInfo[key.split(' ')[1]].name.split(':')[0]),
+                        datasets: [{
+                            label: '도서 수',
+                            data: Object.values(stageCounts),
+                            backgroundColor: ['#145c70', '#2e869c', '#53b4cf', '#83d3e8', '#b2e2ef'],
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                });
+
+                const categoryChartCtx = document.getElementById('categoryChart').getContext('2d');
+                new Chart(categoryChartCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(categoryCounts),
+                        datasets: [{
+                            label: '도서 수',
+                            data: Object.values(categoryCounts),
+                            backgroundColor: '#2e869c',
+                            borderColor: '#145c70',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            };
+            
+            setupFilterDropdowns();
+            applyFilters();
+            setupCharts();
+            updateStatistics();
+        });
+
+        // 설정(톱니바퀴) 클릭 시 도서목록관리 페이지로 이동
+        document.getElementById('admin-settings-btn').addEventListener('click', () => {
+            document.getElementById('main-content-view').classList.add('hidden');
+            document.getElementById('admin-view').classList.remove('hidden');
+            // 상단 네비/버튼 숨기기
+            document.querySelectorAll('nav.md\\:flex > *').forEach(el => el.classList.add('hidden'));
+            renderAdminBookList();
+        });
+
+        // "서울대추천도서100" 클릭 시 홈(처음화면)으로 복귀 + 상단 네비/버튼 다시 보이기
+        document.getElementById('home-btn').addEventListener('click', () => {
+            document.getElementById('admin-view').classList.add('hidden');
+            document.getElementById('main-content-view').classList.remove('hidden');
+            // 상단 네비/버튼 다시 보이기
+            document.querySelectorAll('nav.md\\:flex > *').forEach(el => el.classList.remove('hidden'));
+        });
+
+        // 관리자 검색 상태
+        let adminSearchTerm = "";
+
+        // 관리자 테이블 렌더링 (검색, 수정, 삭제 기능 포함)
+        function renderAdminBookList() {
+            const tbody = document.getElementById('admin-book-list');
+            tbody.innerHTML = '';
+            let filtered = bookData.filter(b => !b.isDeleted);
+
+            // 출처 필터
+            if (adminSourceFilter === "SNU") {
+                filtered = filtered.filter(book => !book.isUserAdded);
+            } else if (adminSourceFilter === "MyBooks") {
+                filtered = filtered.filter(book => book.isUserAdded);
+            }
+
+            // 검색어 필터
+            if (adminSearchTerm) {
+                const term = adminSearchTerm.toLowerCase();
+                filtered = filtered.filter(b =>
+                    (b.title && b.title.toLowerCase().includes(term)) ||
+                    (b.author && b.author.toLowerCase().includes(term))
+                );
+            }
+
+            filtered.forEach(book => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-3 py-2">${book.id}</td>
+                    <td class="px-3 py-2">${book.title}</td>
+                    <td class="px-3 py-2">${book.author}</td>
+                    <td class="px-3 py-2">${book.stage || ''}</td>
+                    <td class="px-3 py-2">${book.category || ''}</td>
+                    <td class="px-3 py-2">${book.publisher || ''}</td>
+                    <td class="px-3 py-2 flex gap-2">
+                        <button class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 admin-edit-btn" data-id="${book.id}">수정</button>
+                        <button class="bg-stone-400 text-white px-3 py-1 rounded hover:bg-stone-600 admin-delete-btn" data-id="${book.id}">삭제</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // 수정 버튼 이벤트
+            document.querySelectorAll('.admin-edit-btn').forEach(btn => {
+                btn.onclick = function() {
+                    const id = Number(this.dataset.id);
+                    const book = bookData.find(b => b.id === id);
+                    if (!book) return;
+                    document.getElementById('add-book-modal-title').textContent = '도서 정보 수정';
+                    document.getElementById('new-book-title').value = book.title;
+                    document.getElementById('new-book-author').value = book.author;
+                    document.getElementById('new-book-publisher').value = book.publisher || '';
+                    document.getElementById('new-book-guide').value = book.guide || '';
+                    document.getElementById('new-book-category-input').value = '';
+                    document.getElementById('new-book-category-input').classList.add('hidden');
+                    document.getElementById('new-book-category-select').classList.remove('hidden');
+                    document.getElementById('new-book-category-select').value = book.category || '';
+                    document.getElementById('new-book-cover').value = book.cover || '';
+                    if (book.stage) {
+                        document.querySelector('input[name="book-type"][value="snu"]').checked = true;
+                        document.getElementById('new-book-stage-container').classList.remove('hidden');
+                        document.getElementById('new-book-stage').value = book.stage;
+                    } else {
+                        document.querySelector('input[name="book-type"][value="my"]').checked = true;
+                        document.getElementById('new-book-stage-container').classList.add('hidden');
+                    }
+                    // 저장 버튼 이벤트 중복 방지
+                    const addBookSaveBtn = document.getElementById('add-book-save-btn');
+                    addBookSaveBtn.replaceWith(addBookSaveBtn.cloneNode(true)); // 완전히 교체
+                    const newAddBookSaveBtn = document.getElementById('add-book-save-btn');
+                    newAddBookSaveBtn.onclick = function() {
+                        const title = document.getElementById('new-book-title').value.trim();
+                        const author = document.getElementById('new-book-author').value.trim();
+                        if (!title || !author) {
+                            alert('제목과 저자는 필수 항목입니다.');
+                            return;
+                        }
+                        let stage = 0;
+                        if (document.querySelector('input[name="book-type"]:checked').value === 'snu') {
+                            stage = parseInt(document.getElementById('new-book-stage').value, 10);
+                        }
+                        let category = document.getElementById('new-book-category-select').value;
+                        if (category === 'add-new') {
+                            category = document.getElementById('new-book-category-input').value.trim();
+                            if (!category) {
+                                alert('새 분야를 입력해주세요.');
+                                return;
+                            }
+                        }
+                        book.title = title;
+                        book.author = author;
+                        book.publisher = document.getElementById('new-book-publisher').value.trim();
+                        book.guide = document.getElementById('new-book-guide').value.trim();
+                        book.category = category;
+                        book.stage = stage;
+                        book.cover = document.getElementById('new-book-cover').value.trim();
+                        saveData();
+                        renderAdminBookList();
+                        updateStatistics();
+                        applyFilters();
+                        closeAddBookModal();
+                    };
+                    openAddBookModal();
+                };
+            });
+
+            // 삭제 버튼 이벤트
+            document.querySelectorAll('.admin-delete-btn').forEach(btn => {
+                btn.onclick = function() {
+                    const id = Number(this.dataset.id);
+                    if (!confirm('정말 삭제하시겠습니까?')) return;
+                    const book = bookData.find(b => b.id === id);
+                    if (book) {
+                        book.isDeleted = true;
+                        saveData();
+                        renderAdminBookList();
+                        updateStatistics();
+                        applyFilters();
+                    }
+                };
+            });
+        }
+
+        // 출처 드롭다운 이벤트
+        document.getElementById('admin-source-dropdown').addEventListener('change', (e) => {
+            adminSourceFilter = e.target.value;
+            renderAdminBookList();
+        });
+
+        // 관리자 검색 이벤트
+        document.getElementById('admin-search-btn').addEventListener('click', () => {
+            adminSearchTerm = document.getElementById('admin-search-input').value.trim();
+            renderAdminBookList();
+        });
+        document.getElementById('admin-search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                adminSearchTerm = document.getElementById('admin-search-input').value.trim();
+                renderAdminBookList();
+            }
+        });
+
+        // 새 책 추가 버튼(추가 모드로)
+        document.getElementById('add-new-book-btn-admin').addEventListener('click', () => {
+            document.getElementById('add-book-modal-title').textContent = '새 책 추가하기';
+            document.getElementById('new-book-title').value = '';
+            document.getElementById('new-book-author').value = '';
+            document.getElementById('new-book-publisher').value = '';
+            document.getElementById('new-book-guide').value = '';
+            document.getElementById('new-book-category-input').value = '';
+            document.getElementById('new-book-category-input').classList.add('hidden');
+            document.getElementById('new-book-category-select').classList.remove('hidden');
+            document.querySelector('input[name="book-type"][value="my"]').checked = true;
+            document.getElementById('new-book-stage-container').classList.add('hidden');
+            // 저장 버튼 이벤트 중복 방지
+            const addBookSaveBtn = document.getElementById('add-book-save-btn');
+            addBookSaveBtn.replaceWith(addBookSaveBtn.cloneNode(true)); // 완전히 교체
+            const newAddBookSaveBtn = document.getElementById('add-book-save-btn');
+            newAddBookSaveBtn.onclick = handleAddNewBook;
+            openAddBookModal();
+        });
+    </script>
+</body>
+</html>
