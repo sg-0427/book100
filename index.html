@@ -9,6 +9,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- PWA 설정 -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#0f766e">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="서울대추천도서100">
     <!-- Chosen Palette: Calm Harmony (Warm Neutrals with Muted Teal/Slate Accents) -->
     <!-- Application Structure Plan: The application is designed as a single-page, scrollable journey based on the 5-step reading guide. This structure was chosen because it provides a clear, progressive path for beginner readers, which was the user's primary need. The user flow starts with a visual dashboard for a high-level overview, followed by navigation/filter controls, and then the main content area with book cards grouped by the 5 stages. This top-down structure (overview -> tools -> details) is intuitive and supports both passive browsing and active searching. -->
     <!-- Visualization & Content Choices: 
@@ -210,6 +218,13 @@
                             <!-- 검색 입력박스/버튼 -->
                             <input type="text" id="admin-search-input" placeholder="제목 또는 저자 검색" class="border border-stone-300 rounded-lg px-3 py-2 w-56 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition" />
                             <button id="admin-search-btn" class="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition">검색</button>
+                            <!-- 아이콘 관리 버튼 -->
+                            <button id="icon-manage-btn" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                </svg>
+                                ICON
+                            </button>
                             <!-- 새 책 추가 버튼 -->
                             <button id="add-new-book-btn-admin" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">새 책 추가</button>
                         </div>
@@ -372,11 +387,130 @@
                 </div>
             </div>
         </div>
+
+        <!-- Icon Management Modal -->
+        <div id="icon-modal-backdrop" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden"></div>
+        <div id="icon-modal" class="fixed inset-0 flex items-center justify-center p-4 z-50 hidden">
+            <div id="icon-modal-content" class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-stone-800">🎨 앱 아이콘 관리</h2>
+                        <button id="icon-modal-close-btn" class="text-stone-400 hover:text-stone-700 transition">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- 탭 메뉴 -->
+                    <div class="flex border-b border-stone-200 mb-6">
+                        <button id="tab-default" class="icon-tab px-4 py-2 font-medium text-purple-600 border-b-2 border-purple-600">기본 아이콘</button>
+                        <button id="tab-templates" class="icon-tab px-4 py-2 font-medium text-stone-500 hover:text-purple-600">템플릿</button>
+                        <button id="tab-custom" class="icon-tab px-4 py-2 font-medium text-stone-500 hover:text-purple-600">커스텀 제작</button>
+                        <button id="tab-upload" class="icon-tab px-4 py-2 font-medium text-stone-500 hover:text-purple-600">파일 업로드</button>
+                    </div>
+
+                    <!-- 미리보기 영역 -->
+                    <div class="bg-stone-50 rounded-lg p-4 mb-6">
+                        <div class="flex items-center gap-4">
+                            <div class="text-sm font-medium text-stone-700">미리보기:</div>
+                            <div id="icon-preview" class="w-16 h-16 rounded-lg border border-stone-300 bg-white flex items-center justify-center overflow-hidden">
+                                <!-- 미리보기 아이콘이 여기에 표시됩니다 -->
+                            </div>
+                            <div class="text-xs text-stone-500">
+                                선택한 아이콘이 홈화면에서 이렇게 보입니다
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 콘텐츠 영역 -->
+                    <div class="overflow-y-auto max-h-96">
+                        <!-- 기본 아이콘 탭 -->
+                        <div id="content-default" class="icon-content">
+                            <div class="text-center">
+                                <div id="default-icon-display" class="w-32 h-32 mx-auto mb-4 rounded-lg border border-stone-300 bg-white flex items-center justify-center overflow-hidden">
+                                    <!-- 기본 SVG 아이콘이 여기에 표시됩니다 -->
+                                </div>
+                                <p class="text-stone-600 mb-4">개발자가 제작한 기본 아이콘입니다</p>
+                                <button id="select-default-icon" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition">이 아이콘 사용하기</button>
+                            </div>
+                        </div>
+
+                        <!-- 템플릿 아이콘 탭 -->
+                        <div id="content-templates" class="icon-content hidden">
+                            <div class="grid grid-cols-4 gap-4 mb-6">
+                                <!-- 템플릿 아이콘들이 여기에 표시됩니다 -->
+                            </div>
+                            <div class="text-center">
+                                <button id="select-template-icon" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition" disabled>템플릿을 선택하세요</button>
+                            </div>
+                        </div>
+
+                        <!-- 커스텀 제작 탭 -->
+                        <div id="content-custom" class="icon-content hidden">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-stone-700 mb-2">배경색</label>
+                                    <div class="flex gap-2">
+                                        <input type="color" id="custom-bg-color" value="#0f766e" class="w-12 h-10 rounded border border-stone-300">
+                                        <input type="text" id="custom-bg-text" value="#0f766e" class="flex-1 px-3 py-2 border border-stone-300 rounded-lg">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-stone-700 mb-2">아이콘 색상</label>
+                                    <div class="flex gap-2">
+                                        <input type="color" id="custom-icon-color" value="#ffffff" class="w-12 h-10 rounded border border-stone-300">
+                                        <input type="text" id="custom-icon-text" value="#ffffff" class="flex-1 px-3 py-2 border border-stone-300 rounded-lg">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-stone-700 mb-2">텍스트 (선택사항)</label>
+                                    <input type="text" id="custom-text" placeholder="예: 100" maxlength="5" class="w-full px-3 py-2 border border-stone-300 rounded-lg">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-stone-700 mb-2">아이콘 스타일</label>
+                                    <select id="custom-style" class="w-full px-3 py-2 border border-stone-300 rounded-lg">
+                                        <option value="book">📚 책 아이콘</option>
+                                        <option value="library">🏛️ 도서관 아이콘</option>
+                                        <option value="graduation">🎓 졸업모 아이콘</option>
+                                        <option value="heart">💖 하트 아이콘</option>
+                                    </select>
+                                </div>
+                                <button id="generate-custom-icon" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition mb-3">아이콘 생성하기</button>
+                                <button id="select-custom-icon" class="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition" disabled>먼저 아이콘을 생성하세요</button>
+                            </div>
+                        </div>
+
+                        <!-- 파일 업로드 탭 -->
+                        <div id="content-upload" class="icon-content hidden">
+                            <div class="border-2 border-dashed border-stone-300 rounded-lg p-8 text-center mb-4">
+                                <input type="file" id="icon-file-input" accept="image/*" class="hidden">
+                                <svg class="w-12 h-12 mx-auto mb-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                </svg>
+                                <p class="text-stone-600 mb-4">PNG, JPG, SVG 파일을 업로드하세요</p>
+                                <p class="text-xs text-stone-500 mb-4">권장 크기: 192x192 픽셀 이상</p>
+                                <button id="upload-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">파일 선택</button>
+                            </div>
+                            <div class="text-center">
+                                <button id="select-uploaded-icon" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition" disabled>파일을 업로드하세요</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 버튼 영역 -->
+                    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-stone-200">
+                        <button id="icon-cancel-btn" class="px-6 py-2 bg-stone-200 text-stone-700 rounded-lg hover:bg-stone-300 transition">취소</button>
+                        <button id="icon-apply-btn" class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">적용하기</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
         const initialBookData = [
-            { id: 1, stage: 1, title: '피노키오의 모험', author: '카를로 콜로디', publisher: '비룡소 (어스본)', category: '외국문학', guide: '단순한 동화를 넘어 인간의 성장과 선택에 대한 깊은 성찰을 담고 있어 어른에게도 큰 울림을 줍니다.', cover: './1피노키오의모험-카를로콜로디.png', startDate: null, completionDate: null, memos: [] },
+            { id: 1, stage: 1, title: '피노키오의 모험', author: '카를로 콜로디', publisher: '비룡소 (어스본)', category: '외국문학', guide: '단순한 동화를 넘어 인간의 성장과 선택에 대한 깊은 성찰을 담고 있어 어른에게도 큰 울림을 줍니다.', cover: 'https://sg-0427.github.io/book100/1피노키오의모험-카를로', startDate: null, completionDate: null, memos: [] },
             { id: 2, stage: 1, title: '허생전', author: '박지원', publisher: '삼성출판사', category: '한국문학', guide: '짧지만 강렬한 풍자와 비판이 담긴 한문 단편소설입니다. 조선 후기 사회의 모습과 실학사상을 엿볼 수 있습니다.', cover: './1허생전-박지원.png', startDate: null, completionDate: null, memos: [] },
             { id: 3, stage: 1, title: '춘향전', author: '작자 미상', publisher: '민음사', category: '한국문학', guide: '한국인이 가장 사랑하는 고전 소설 중 하나로, 신분을 뛰어넘는 사랑과 사회에 대한 저항 정신을 느낄 수 있습니다.', cover: './1춘향전-작자미상.png', startDate: null, completionDate: null, memos: [] },
             { id: 4, stage: 1, title: '구운몽', author: '김만중', publisher: '민음사', category: '한국문학', guide: '인생의 덧없음과 꿈의 의미를 환상적인 구조로 풀어낸 고전 소설의 정수입니다.', cover: './1구운몽.png', startDate: null, completionDate: null, memos: [] },
@@ -1271,6 +1405,354 @@ const renderBooks = (booksToRender) => {
             const newAddBookSaveBtn = document.getElementById('add-book-save-btn');
             newAddBookSaveBtn.onclick = handleAddNewBook;
             openAddBookModal();
+        });
+
+        // 아이콘 관리 기능
+        let currentSelectedIcon = null;
+        const iconTemplates = [
+            {
+                name: "기본 도서",
+                svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="64" height="64">
+                    <rect width="192" height="192" rx="32" fill="#0f766e"/>
+                    <g transform="translate(48, 40)">
+                        <rect x="0" y="0" width="96" height="112" rx="8" fill="#ffffff" stroke="#0f766e" stroke-width="2"/>
+                        <rect x="12" y="16" width="72" height="4" rx="2" fill="#0f766e"/>
+                        <rect x="12" y="28" width="56" height="3" rx="1.5" fill="#14b8a6"/>
+                        <rect x="12" y="38" width="64" height="3" rx="1.5" fill="#14b8a6"/>
+                        <text x="48" y="75" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#0f766e" text-anchor="middle">100</text>
+                        <rect x="8" y="8" width="96" height="112" rx="8" fill="#ccfbf1" stroke="#5eead4" stroke-width="1" opacity="0.7"/>
+                        <rect x="4" y="4" width="96" height="112" rx="8" fill="#a7f3d0" stroke="#5eead4" stroke-width="1" opacity="0.5"/>
+                    </g>
+                </svg>`
+            },
+            {
+                name: "모던 라이브러리",
+                svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="64" height="64">
+                    <rect width="192" height="192" rx="32" fill="#1e40af"/>
+                    <g transform="translate(32, 32)">
+                        <rect x="0" y="20" width="128" height="108" rx="8" fill="#3b82f6"/>
+                        <rect x="16" y="0" width="96" height="20" rx="4" fill="#60a5fa"/>
+                        <rect x="20" y="32" width="12" height="80" rx="2" fill="#dbeafe"/>
+                        <rect x="36" y="32" width="12" height="80" rx="2" fill="#dbeafe"/>
+                        <rect x="52" y="32" width="12" height="80" rx="2" fill="#dbeafe"/>
+                        <rect x="68" y="32" width="12" height="80" rx="2" fill="#dbeafe"/>
+                        <rect x="84" y="32" width="12" height="80" rx="2" fill="#dbeafe"/>
+                        <rect x="100" y="32" width="12" height="80" rx="2" fill="#dbeafe"/>
+                    </g>
+                </svg>`
+            },
+            {
+                name: "클래식 북",
+                svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="64" height="64">
+                    <rect width="192" height="192" rx="32" fill="#7c2d12"/>
+                    <g transform="translate(48, 32)">
+                        <rect x="0" y="0" width="96" height="128" rx="8" fill="#fed7aa"/>
+                        <rect x="8" y="8" width="80" height="8" rx="4" fill="#ea580c"/>
+                        <rect x="8" y="24" width="60" height="4" rx="2" fill="#9a3412"/>
+                        <rect x="8" y="32" width="70" height="4" rx="2" fill="#9a3412"/>
+                        <rect x="8" y="40" width="50" height="4" rx="2" fill="#9a3412"/>
+                        <circle cx="48" cy="80" r="20" fill="#ea580c"/>
+                        <text x="48" y="88" font-family="serif" font-size="16" font-weight="bold" fill="#fed7aa" text-anchor="middle">📚</text>
+                    </g>
+                </svg>`
+            },
+            {
+                name: "그래디언트 스타일",
+                svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="64" height="64">
+                    <defs>
+                        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <rect width="192" height="192" rx="32" fill="url(#grad1)"/>
+                    <g transform="translate(64, 64)">
+                        <rect x="0" y="0" width="64" height="64" rx="8" fill="#ffffff" opacity="0.9"/>
+                        <rect x="8" y="8" width="48" height="4" rx="2" fill="#8b5cf6"/>
+                        <rect x="8" y="16" width="36" height="3" rx="1.5" fill="#06b6d4"/>
+                        <rect x="8" y="24" width="42" height="3" rx="1.5" fill="#06b6d4"/>
+                        <text x="32" y="45" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#8b5cf6" text-anchor="middle">100</text>
+                    </g>
+                </svg>`
+            }
+        ];
+
+        // 아이콘 모달 관련 요소들
+        const iconModal = document.getElementById('icon-modal');
+        const iconModalBackdrop = document.getElementById('icon-modal-backdrop');
+        const iconModalCloseBtn = document.getElementById('icon-modal-close-btn');
+        const iconManageBtn = document.getElementById('icon-manage-btn');
+        const iconCancelBtn = document.getElementById('icon-cancel-btn');
+        const iconApplyBtn = document.getElementById('icon-apply-btn');
+
+        // 탭 관련 요소들
+        const iconTabs = document.querySelectorAll('.icon-tab');
+        const iconContents = document.querySelectorAll('.icon-content');
+
+        // 아이콘 모달 열기
+        function openIconModal() {
+            iconModal.classList.remove('hidden');
+            iconModalBackdrop.classList.remove('hidden');
+            initializeIconModal();
+        }
+
+        // 아이콘 모달 닫기
+        function closeIconModal() {
+            iconModal.classList.add('hidden');
+            iconModalBackdrop.classList.add('hidden');
+            currentSelectedIcon = null;
+        }
+
+        // 아이콘 모달 초기화
+        function initializeIconModal() {
+            // 기본 아이콘 표시
+            const defaultIconDisplay = document.getElementById('default-icon-display');
+            defaultIconDisplay.innerHTML = iconTemplates[0].svg.replace('width="64" height="64"', 'width="128" height="128"');
+            
+            // 미리보기에 기본 아이콘 표시
+            const iconPreview = document.getElementById('icon-preview');
+            iconPreview.innerHTML = iconTemplates[0].svg;
+            currentSelectedIcon = iconTemplates[0];
+
+            // 템플릿 아이콘들 생성
+            renderTemplateIcons();
+            
+            // 기본 탭 활성화
+            switchTab('default');
+        }
+
+        // 템플릿 아이콘들 렌더링
+        function renderTemplateIcons() {
+            const templatesContent = document.getElementById('content-templates');
+            templatesContent.innerHTML = '';
+            
+            iconTemplates.forEach((template, index) => {
+                const templateDiv = document.createElement('div');
+                templateDiv.className = 'template-icon cursor-pointer p-3 border border-stone-300 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition text-center';
+                templateDiv.innerHTML = `
+                    ${template.svg}
+                    <p class="text-xs text-stone-600 mt-2">${template.name}</p>
+                `;
+                templateDiv.addEventListener('click', () => selectTemplateIcon(template));
+                templatesContent.appendChild(templateDiv);
+            });
+        }
+
+        // 템플릿 아이콘 선택
+        function selectTemplateIcon(template) {
+            const iconPreview = document.getElementById('icon-preview');
+            iconPreview.innerHTML = template.svg;
+            currentSelectedIcon = template;
+            
+            // 다른 템플릿들의 선택 상태 제거
+            document.querySelectorAll('.template-icon').forEach(el => {
+                el.classList.remove('border-purple-500', 'bg-purple-50');
+                el.classList.add('border-stone-300');
+            });
+            
+            // 현재 선택된 템플릿 강조
+            event.currentTarget.classList.remove('border-stone-300');
+            event.currentTarget.classList.add('border-purple-500', 'bg-purple-50');
+            
+            // 템플릿 적용 버튼 활성화
+            const selectTemplateBtn = document.getElementById('select-template-icon');
+            selectTemplateBtn.disabled = false;
+            selectTemplateBtn.textContent = '이 템플릿 사용하기';
+            selectTemplateBtn.classList.remove('bg-stone-400');
+            selectTemplateBtn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+        }
+
+        // 탭 전환
+        function switchTab(tabName) {
+            // 모든 탭 비활성화
+            iconTabs.forEach(tab => {
+                tab.classList.remove('text-purple-600', 'border-purple-600');
+                tab.classList.add('text-stone-500');
+                tab.style.borderBottomColor = 'transparent';
+            });
+            
+            // 모든 콘텐츠 숨기기
+            iconContents.forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // 선택된 탭 활성화
+            const selectedTab = document.getElementById(`tab-${tabName}`);
+            selectedTab.classList.remove('text-stone-500');
+            selectedTab.classList.add('text-purple-600');
+            selectedTab.style.borderBottomColor = '#9333ea';
+            selectedTab.style.borderBottomWidth = '2px';
+            
+            // 선택된 콘텐츠 표시
+            document.getElementById(`content-${tabName}`).classList.remove('hidden');
+        }
+
+        // 커스텀 아이콘 생성
+        function generateCustomIcon() {
+            const bgColor = document.getElementById('custom-bg-color').value;
+            const iconColor = document.getElementById('custom-icon-color').value;
+            const text = document.getElementById('custom-text').value;
+            const style = document.getElementById('custom-style').value;
+            
+            let iconContent = '';
+            
+            switch(style) {
+                case 'book':
+                    iconContent = `
+                        <rect x="48" y="40" width="96" height="112" rx="8" fill="${iconColor}" stroke="${iconColor}" stroke-width="2"/>
+                        <rect x="60" y="56" width="72" height="4" rx="2" fill="${bgColor}"/>
+                        <rect x="60" y="68" width="56" height="3" rx="1.5" fill="${bgColor}"/>
+                        <rect x="60" y="78" width="64" height="3" rx="1.5" fill="${bgColor}"/>
+                    `;
+                    break;
+                case 'library':
+                    iconContent = `
+                        <rect x="32" y="52" width="128" height="88" rx="8" fill="${iconColor}"/>
+                        <rect x="48" y="32" width="96" height="20" rx="4" fill="${iconColor}"/>
+                        <rect x="52" y="64" width="12" height="60" rx="2" fill="${bgColor}"/>
+                        <rect x="68" y="64" width="12" height="60" rx="2" fill="${bgColor}"/>
+                        <rect x="84" y="64" width="12" height="60" rx="2" fill="${bgColor}"/>
+                        <rect x="100" y="64" width="12" height="60" rx="2" fill="${bgColor}"/>
+                        <rect x="116" y="64" width="12" height="60" rx="2" fill="${bgColor}"/>
+                    `;
+                    break;
+                case 'graduation':
+                    iconContent = `
+                        <circle cx="96" cy="80" r="40" fill="${iconColor}"/>
+                        <polygon points="96,60 76,70 96,80 116,70" fill="${bgColor}"/>
+                        <rect x="94" y="80" width="4" height="40" fill="${iconColor}"/>
+                        <circle cx="96" cy="124" r="8" fill="${bgColor}"/>
+                    `;
+                    break;
+                case 'heart':
+                    iconContent = `
+                        <path d="M96,140 C96,140 40,100 40,70 C40,50 55,40 75,40 C85,40 96,50 96,50 C96,50 107,40 117,40 C137,40 152,50 152,70 C152,100 96,140 96,140 Z" fill="${iconColor}"/>
+                    `;
+                    break;
+            }
+            
+            const customSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="64" height="64">
+                <rect width="192" height="192" rx="32" fill="${bgColor}"/>
+                ${iconContent}
+                ${text ? `<text x="96" y="170" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="${iconColor}" text-anchor="middle">${text}</text>` : ''}
+            </svg>`;
+            
+            const iconPreview = document.getElementById('icon-preview');
+            iconPreview.innerHTML = customSvg;
+            currentSelectedIcon = { name: '커스텀 아이콘', svg: customSvg };
+            
+            // 커스텀 적용 버튼 활성화
+            const selectCustomBtn = document.getElementById('select-custom-icon');
+            selectCustomBtn.disabled = false;
+            selectCustomBtn.textContent = '이 커스텀 아이콘 사용하기';
+            selectCustomBtn.classList.remove('bg-stone-400');
+            selectCustomBtn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+        }
+
+        // 파일 업로드 처리
+        function handleFileUpload(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('이미지 파일만 업로드할 수 있습니다.');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const iconPreview = document.getElementById('icon-preview');
+                iconPreview.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded">`;
+                currentSelectedIcon = { name: '업로드된 이미지', dataUrl: e.target.result };
+                
+                // 업로드 적용 버튼 활성화
+                const selectUploadedBtn = document.getElementById('select-uploaded-icon');
+                selectUploadedBtn.disabled = false;
+                selectUploadedBtn.textContent = '이 업로드 이미지 사용하기';
+                selectUploadedBtn.classList.remove('bg-stone-400');
+                selectUploadedBtn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 아이콘 적용
+        function applyIcon() {
+            if (!currentSelectedIcon) {
+                alert('아이콘을 선택해주세요.');
+                return;
+            }
+            
+            // 여기서 실제로 manifest.json을 업데이트하거나 
+            // 로컬스토리지에 아이콘 정보를 저장할 수 있습니다
+            localStorage.setItem('selectedIcon', JSON.stringify(currentSelectedIcon));
+            
+            alert('아이콘이 적용되었습니다! 홈화면에 추가할 때 새로운 아이콘이 표시됩니다.');
+            closeIconModal();
+        }
+
+        // 이벤트 리스너들
+        iconManageBtn.addEventListener('click', openIconModal);
+        iconModalCloseBtn.addEventListener('click', closeIconModal);
+        iconModalBackdrop.addEventListener('click', closeIconModal);
+        iconCancelBtn.addEventListener('click', closeIconModal);
+        iconApplyBtn.addEventListener('click', applyIcon);
+
+        // 탭 클릭 이벤트
+        document.getElementById('tab-default').addEventListener('click', () => switchTab('default'));
+        document.getElementById('tab-templates').addEventListener('click', () => switchTab('templates'));
+        document.getElementById('tab-custom').addEventListener('click', () => switchTab('custom'));
+        document.getElementById('tab-upload').addEventListener('click', () => switchTab('upload'));
+
+        // 기본 아이콘 선택
+        document.getElementById('select-default-icon').addEventListener('click', () => {
+            currentSelectedIcon = iconTemplates[0];
+            const iconPreview = document.getElementById('icon-preview');
+            iconPreview.innerHTML = iconTemplates[0].svg;
+        });
+
+        // 템플릿 아이콘 적용
+        document.getElementById('select-template-icon').addEventListener('click', () => {
+            if (currentSelectedIcon) {
+                applyIcon();
+            }
+        });
+
+        // 커스텀 아이콘 적용
+        document.getElementById('select-custom-icon').addEventListener('click', () => {
+            if (currentSelectedIcon) {
+                applyIcon();
+            }
+        });
+
+        // 업로드 아이콘 적용
+        document.getElementById('select-uploaded-icon').addEventListener('click', () => {
+            if (currentSelectedIcon) {
+                applyIcon();
+            }
+        });
+
+        // 커스텀 아이콘 생성
+        document.getElementById('generate-custom-icon').addEventListener('click', generateCustomIcon);
+        
+        // 색상 입력 동기화
+        document.getElementById('custom-bg-color').addEventListener('change', function() {
+            document.getElementById('custom-bg-text').value = this.value;
+        });
+        document.getElementById('custom-bg-text').addEventListener('input', function() {
+            document.getElementById('custom-bg-color').value = this.value;
+        });
+        document.getElementById('custom-icon-color').addEventListener('change', function() {
+            document.getElementById('custom-icon-text').value = this.value;
+        });
+        document.getElementById('custom-icon-text').addEventListener('input', function() {
+            document.getElementById('custom-icon-color').value = this.value;
+        });
+
+        // 파일 업로드
+        document.getElementById('upload-btn').addEventListener('click', () => {
+            document.getElementById('icon-file-input').click();
+        });
+        document.getElementById('icon-file-input').addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                handleFileUpload(this.files[0]);
+            }
         });
     </script>
 </body>

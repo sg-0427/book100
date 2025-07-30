@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- 배경 -->
+  <rect width="192" height="192" rx="32" fill="#0f766e"/>
+  
+  <!-- 책 아이콘 -->
+  <g transform="translate(48, 40)">
+    <!-- 책 표지 -->
+    <rect x="0" y="0" width="96" height="112" rx="8" fill="#ffffff" stroke="#0f766e" stroke-width="2"/>
+    
+    <!-- 책 제목 라인들 -->
+    <rect x="12" y="16" width="72" height="4" rx="2" fill="#0f766e"/>
+    <rect x="12" y="28" width="56" height="3" rx="1.5" fill="#14b8a6"/>
+    <rect x="12" y="38" width="64" height="3" rx="1.5" fill="#14b8a6"/>
+    
+    <!-- 숫자 100 -->
+    <text x="48" y="75" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#0f766e" text-anchor="middle">100</text>
+    
+    <!-- 작은 책들 (스택 효과) -->
+    <rect x="8" y="8" width="96" height="112" rx="8" fill="#ccfbf1" stroke="#5eead4" stroke-width="1" opacity="0.7"/>
+    <rect x="4" y="4" width="96" height="112" rx="8" fill="#a7f3d0" stroke="#5eead4" stroke-width="1" opacity="0.5"/>
+  </g>
+</svg>
