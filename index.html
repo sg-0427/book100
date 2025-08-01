@@ -69,7 +69,10 @@
     <!-- PWA 설정 -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#0f766e">
-    <link rel="apple-touch-icon" href="./icon6.svg">
+    <link rel="apple-touch-icon" href="./icon2.png">
+    <link rel="icon" type="image/png" href="./icon2.png">
+    <link rel="icon" type="image/svg+xml" href="./icon2.svg">
+    <link rel="shortcut icon" href="./icon2.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="서울대추천도서100">
@@ -172,8 +175,6 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                         </button>
-                        
-                        <button id="add-new-book-btn-header" class="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition text-sm">새 책 추가</button>
                         
                     </nav>
                     <div class="md:hidden">
@@ -392,6 +393,56 @@
         <footer class="text-center py-8 text-stone-500">
             <p>&copy; 2024 Interactive Reading Guide. All rights reserved.</p>
         </footer>
+
+        <!-- Login Modal -->
+        <div id="login-modal-backdrop" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden backdrop-enter"></div>
+        <div id="login-modal" class="fixed inset-0 flex items-center justify-center p-4 z-50 hidden">
+            <div id="login-modal-content" class="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-enter">
+                <div class="p-8">
+                    <div class="text-center mb-6">
+                        <div class="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </div>
+                        <h2 class="text-2xl font-bold text-stone-800 mb-2">관리자 로그인</h2>
+                        <p class="text-stone-600">도서목록관리에 접근하려면 로그인하세요</p>
+                    </div>
+                    
+                    <form id="login-form" class="space-y-4">
+                        <div>
+                            <label for="admin-id" class="block text-sm font-medium text-stone-700 mb-1">아이디</label>
+                            <input type="text" id="admin-id" class="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition" placeholder="아이디를 입력하세요" autocomplete="username">
+                        </div>
+                        
+                        <div>
+                            <label for="admin-password" class="block text-sm font-medium text-stone-700 mb-1">비밀번호</label>
+                            <div class="relative">
+                                <input type="password" id="admin-password" class="w-full px-3 py-2 pr-10 border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition" placeholder="비밀번호를 입력하세요" autocomplete="current-password">
+                                <button type="button" id="password-toggle" class="absolute right-3 top-1/2 transform -translate-y-1/2 eye-toggle">
+                                    <svg id="eye-open" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    <svg id="eye-closed" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L12.5 7.5M17.121 14.121L21 18m-3.879-3.879l-1.5-1.5m1.5 1.5L12.5 7.5" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="login-error" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                            아이디 또는 비밀번호가 올바르지 않습니다.
+                        </div>
+                        
+                        <div class="flex gap-3 pt-4">
+                            <button type="button" id="login-cancel-btn" class="flex-1 px-4 py-2 border border-stone-300 text-stone-700 rounded-lg hover:bg-stone-50 transition">취소</button>
+                            <button type="submit" id="login-submit-btn" class="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition">로그인</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
 
         <!-- Details Modal -->
         <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-60 z-40 hidden"></div>
@@ -1294,7 +1345,6 @@ const renderBooks = (booksToRender) => {
             const modalBackdrop = document.getElementById('modal-backdrop');
             const saveDatesBtn = document.getElementById('save-dates-btn');
             const addMemoBtn = document.getElementById('add-memo-btn');
-            const addNewBookBtn = document.getElementById('add-new-book-btn-header');
             const addBookModalCloseBtn = document.getElementById('add-book-modal-close-btn');
             const addBookModalBackdrop = document.getElementById('add-book-modal-backdrop');
             const addBookCancelBtn = document.getElementById('add-book-cancel-btn');
@@ -1352,7 +1402,6 @@ const renderBooks = (booksToRender) => {
             });
 
             // Add Book Modal listeners
-            addNewBookBtn.addEventListener('click', openAddBookModal);
             addBookModalCloseBtn.addEventListener('click', closeAddBookModal);
             addBookModalBackdrop.addEventListener('click', closeAddBookModal);
             addBookCancelBtn.addEventListener('click', closeAddBookModal);
@@ -1575,8 +1624,46 @@ const renderBooks = (booksToRender) => {
             updateStatistics();
         });
 
-        // 설정(톱니바퀴) 클릭 시 도서목록관리 페이지로 이동
-        document.getElementById('admin-settings-btn').addEventListener('click', () => {
+        // 로그인 상태 관리
+        let isAdminLoggedIn = localStorage.getItem('isAdminLoggedIn') === 'true';
+        
+        // 로그인 모달 관련 함수들
+        function showLoginModal() {
+            const backdrop = document.getElementById('login-modal-backdrop');
+            const modal = document.getElementById('login-modal');
+            const content = document.getElementById('login-modal-content');
+            
+            backdrop.classList.remove('hidden');
+            modal.classList.remove('hidden');
+            
+            // 애니메이션 효과
+            requestAnimationFrame(() => {
+                backdrop.classList.add('backdrop-enter-active');
+                content.classList.add('modal-enter-active');
+            });
+            
+            // 입력 필드 초기화 및 포커스
+            document.getElementById('admin-id').value = '';
+            document.getElementById('admin-password').value = '';
+            document.getElementById('login-error').classList.add('hidden');
+            document.getElementById('admin-id').focus();
+        }
+        
+        function hideLoginModal() {
+            const backdrop = document.getElementById('login-modal-backdrop');
+            const modal = document.getElementById('login-modal');
+            const content = document.getElementById('login-modal-content');
+            
+            backdrop.classList.remove('backdrop-enter-active');
+            content.classList.remove('modal-enter-active');
+            
+            setTimeout(() => {
+                backdrop.classList.add('hidden');
+                modal.classList.add('hidden');
+            }, 200);
+        }
+        
+        function showAdminView() {
             document.getElementById('main-content-view').classList.add('hidden');
             document.getElementById('admin-view').classList.remove('hidden');
             // 상단 네비/버튼 숨기기
@@ -1588,6 +1675,61 @@ const renderBooks = (booksToRender) => {
             document.getElementById('admin-source-dropdown').value = "All";
             document.getElementById('admin-search-input').value = "";
             renderAdminBookList();
+        }
+        
+        // 비밀번호 토글 기능
+        document.getElementById('password-toggle').addEventListener('click', () => {
+            const passwordInput = document.getElementById('admin-password');
+            const eyeOpen = document.getElementById('eye-open');
+            const eyeClosed = document.getElementById('eye-closed');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeOpen.classList.add('hidden');
+                eyeClosed.classList.remove('hidden');
+            } else {
+                passwordInput.type = 'password';
+                eyeOpen.classList.remove('hidden');
+                eyeClosed.classList.add('hidden');
+            }
+        });
+        
+        // 로그인 폼 제출
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const id = document.getElementById('admin-id').value;
+            const password = document.getElementById('admin-password').value;
+            
+            if (id === 'admin' && password === 'admin4455') {
+                // 로그인 성공
+                isAdminLoggedIn = true;
+                localStorage.setItem('isAdminLoggedIn', 'true');
+                localStorage.setItem('adminLoginTime', new Date().toISOString());
+                
+                hideLoginModal();
+                showAdminView();
+            } else {
+                // 로그인 실패
+                document.getElementById('login-error').classList.remove('hidden');
+                document.getElementById('admin-password').value = '';
+                document.getElementById('admin-password').focus();
+            }
+        });
+        
+        // 로그인 취소
+        document.getElementById('login-cancel-btn').addEventListener('click', hideLoginModal);
+        
+        // 로그인 모달 배경 클릭시 닫기
+        document.getElementById('login-modal-backdrop').addEventListener('click', hideLoginModal);
+        
+        // 설정(톱니바퀴) 클릭 시 로그인 체크 후 도서목록관리 페이지로 이동
+        document.getElementById('admin-settings-btn').addEventListener('click', () => {
+            if (isAdminLoggedIn) {
+                showAdminView();
+            } else {
+                showLoginModal();
+            }
         });
 
         // "서울대추천도서100" 클릭 시 홈(처음화면)으로 복귀 + 상단 네비/버튼 다시 보이기
@@ -1596,6 +1738,11 @@ const renderBooks = (booksToRender) => {
             document.getElementById('main-content-view').classList.remove('hidden');
             // 상단 네비/버튼 다시 보이기
             document.querySelectorAll('nav.md\\:flex > *').forEach(el => el.classList.remove('hidden'));
+            
+            // 로그아웃 처리 (선택사항 - 필요시 주석 해제)
+            // isAdminLoggedIn = false;
+            // localStorage.removeItem('isAdminLoggedIn');
+            // localStorage.removeItem('adminLoginTime');
         });
 
         // 관리자 검색 상태
