@@ -28,6 +28,38 @@
         const db = getFirestore(app);
         window.firebaseDB = db;
         console.log('Firebase 초기화 완료!');
+        
+        // Firebase 연결 테스트 (권한 확인)
+        async function testFirebaseConnection() {
+            try {
+                console.log('Firebase 연결 테스트 시작...');
+                
+                // 먼저 읽기 테스트
+                const testCollection = collection(db, 'test');
+                const querySnapshot = await getDocs(testCollection);
+                console.log('✅ Firebase 읽기 권한 확인됨');
+                
+                // 쓰기 테스트
+                const testDoc = doc(db, 'test', 'connection');
+                await setDoc(testDoc, { 
+                    timestamp: new Date(),
+                    message: '연결 테스트 성공'
+                });
+                console.log('✅ Firebase 쓰기 권한 확인됨');
+                console.log('🎉 Firebase 완전 연동 성공!');
+                
+            } catch (error) {
+                console.error('❌ Firebase 연결 실패:', error.message);
+                if (error.code === 'permission-denied') {
+                    console.error('🔒 권한 문제: Firestore 보안 규칙을 확인하세요');
+                }
+            }
+        }
+        
+        // 페이지 로드 후 테스트 실행
+        window.addEventListener('load', () => {
+            setTimeout(testFirebaseConnection, 2000);
+        });
     </script>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
