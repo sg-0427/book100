@@ -869,19 +869,45 @@ const coloredBookIcon = `
             const filters = { activeSourceFilter, activeCategoryFilter, activeStageFilter, activeStatusFilter };
             localStorage.setItem('snuBookTrackerFilters', JSON.stringify(filters));
             
-            // Firebase 동기화
+            // 🎯 스마트 Firebase 백업 (비용 최적화)
             if (isFirebaseEnabled) {
-                await syncToFirebase(bookData);
+                const lastFirebaseSync = localStorage.getItem('lastFirebaseSync');
+                const timeSinceLastSync = lastFirebaseSync ? (Date.now() - new Date(lastFirebaseSync).getTime()) : Infinity;
+                
+                // 5분 간격 또는 페이지 종료 시에만 Firebase 저장 (비용 절약)
+                if (timeSinceLastSync > 5 * 60 * 1000) { // 5분 = 300,000ms
+                    try {
+                        await syncToFirebase(bookData);
+                        localStorage.setItem('lastFirebaseSync', now);
+                        console.log('🔄 Firebase 백업 완료 (스마트 모드)');
+                    } catch (error) {
+                        console.error('Firebase 백업 실패:', error);
+                    }
+                } else {
+                    console.log('📱 로컬 저장만 완료 (Firebase 대기 중)');
+                }
             }
+        };
+        
+        // 🎯 필터 전용 저장 함수 (Firebase 제외)
+        const saveFiltersOnly = () => {
+            const filters = { activeSourceFilter, activeCategoryFilter, activeStageFilter, activeStatusFilter };
+            localStorage.setItem('snuBookTrackerFilters', JSON.stringify(filters));
+            console.log('🔍 필터 설정만 로컬 저장');
         };
 
         const loadData = () => {
+            console.log('🔄 데이터 로드 시작...');
             const savedData = localStorage.getItem('snuBookTrackerData');
+            console.log('📱 localStorage 데이터:', savedData ? '존재함' : '없음');
+            
             if (savedData) {
                 const parsedData = JSON.parse(savedData);
                 bookData = parsedData.map(book => ({...book, memos: book.memos || [], isDeleted: book.isDeleted || false }));
+                console.log('✅ localStorage에서 데이터 복원:', bookData.length + '개 도서');
             } else {
                 bookData = initialBookData;
+                console.log('⚠️ localStorage 없음, 초기 데이터 사용');
             }
 
             const savedFilters = localStorage.getItem('snuBookTrackerFilters');
@@ -947,7 +973,7 @@ const coloredBookIcon = `
             }
             
             renderBooks(filteredBooks);
-            saveData(); // Save filter state
+            saveFiltersOnly(); // 필터만 로컬 저장 (Firebase 제외)
         };
 
         // 2. 도서카드 렌더링 함수만 아래처럼 교체
@@ -1339,6 +1365,19 @@ const renderBooks = (booksToRender) => {
         document.addEventListener('DOMContentLoaded', async () => {
             loadData();
             await initFirebase(); // Firebase 초기화 추가
+            
+            // 🛡️ 페이지 종료 시 강제 Firebase 백업 (데이터 보호)
+            window.addEventListener('beforeunload', async (e) => {
+                if (isFirebaseEnabled) {
+                    try {
+                        await syncToFirebase(bookData);
+                        localStorage.setItem('lastFirebaseSync', new Date().toISOString());
+                        console.log('🚨 페이지 종료 - 긴급 백업 완료');
+                    } catch (error) {
+                        console.error('긴급 백업 실패:', error);
+                    }
+                }
+            });
             
             const searchInput = document.getElementById('search-input');
             const modalCloseBtn = document.getElementById('modal-close-btn');
