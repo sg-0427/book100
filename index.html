@@ -63,6 +63,40 @@
             background-color: #e0f7fa !important;
             transition: background 0.2s;
         }
+        /* 모바일에서 섹션 숨김 설정 */
+        @media (max-width: 767px) {
+            #explorer-accordion.mobile-hidden,
+            #statistics-accordion.mobile-hidden,
+            #dashboard-accordion.mobile-hidden {
+                display: none;
+            }
+        }
+        /* 눈 아이콘 스타일 */
+        .eye-toggle {
+            cursor: pointer;
+            transition: opacity 0.2s;
+            color: #6b7280;
+        }
+        .eye-toggle:hover {
+            color: #374151;
+        }
+        .eye-toggle.hidden-state {
+            opacity: 0.4;
+        }
+        /* 네비게이션 토글 버튼 스타일 */
+        .nav-toggle-btn {
+            position: relative;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+        }
+        .nav-toggle-btn.active {
+            background-color: #14b8a6;
+            color: white;
+        }
+        .nav-toggle-btn.inactive {
+            background-color: #f3f4f6;
+            color: #9ca3af;
+        }
     </style>
 </head>
 <body class="bg-stone-50 text-stone-800">
@@ -73,9 +107,9 @@
                 <div class="flex justify-between items-center py-3">
                     <h1 class="text-xl md:text-2xl font-bold text-teal-800 cursor-pointer" id="home-btn">&nbsp;&nbsp;&nbsp;&nbsp;서울대추천도서100</h1>
                     <nav class="hidden md:flex items-center gap-4">
-                        <a href="#explorer-accordion" class="text-stone-600 hover:text-teal-700">검색/필터</a>
-                        <a href="#statistics-accordion" class="text-stone-600 hover:text-teal-700">독서 현황</a>
-                        <a href="#dashboard-accordion" class="text-stone-600 hover:text-teal-700">인포그래픽</a>
+                        <button id="nav-explorer-btn" class="nav-toggle-btn text-stone-600 hover:text-teal-700 transition-colors" data-section="explorer">검색/필터</button>
+                        <button id="nav-statistics-btn" class="nav-toggle-btn text-stone-600 hover:text-teal-700 transition-colors" data-section="statistics">독서 현황</button>
+                        <button id="nav-dashboard-btn" class="nav-toggle-btn text-stone-600 hover:text-teal-700 transition-colors" data-section="dashboard">인포그래픽</button>
                         <button id="admin-settings-btn" class="text-stone-600 hover:text-teal-700" title="도서 목록 관리">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -95,9 +129,27 @@
             </div>
              <!-- Mobile Menu -->
             <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-stone-200 p-4 space-y-4">
-                <a href="#explorer-accordion" class="mobile-nav-link block py-2 px-4 text-stone-600 hover:bg-stone-100 rounded-md">검색/필터</a>
-                <a href="#statistics-accordion" class="mobile-nav-link block py-2 px-4 text-stone-600 hover:bg-stone-100 rounded-md">독서 현황</a>
-                <a href="#dashboard-accordion" class="mobile-nav-link block py-2 px-4 text-stone-600 hover:bg-stone-100 rounded-md">인포그래픽</a>
+                <div class="flex items-center justify-between py-2 px-4 text-stone-600 hover:bg-stone-100 rounded-md">
+                    <span>검색/필터</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="mobile-explorer-toggle" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                    </label>
+                </div>
+                <div class="flex items-center justify-between py-2 px-4 text-stone-600 hover:bg-stone-100 rounded-md">
+                    <span>독서 현황</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="mobile-statistics-toggle" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                    </label>
+                </div>
+                <div class="flex items-center justify-between py-2 px-4 text-stone-600 hover:bg-stone-100 rounded-md">
+                    <span>인포그래픽</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="mobile-dashboard-toggle" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                    </label>
+                </div>
                 <button id="trash-view-btn-mobile" class="w-full text-left py-2 px-4 text-stone-600 hover:bg-stone-100 rounded-md">휴지통</button>
                 <div id="mobile-filter-area" class="space-y-4 border-t pt-4">
                     <!-- Mobile filters will be injected here by JS -->
@@ -109,7 +161,13 @@
             <div id="main-content-view">
                 <section id="explorer-accordion" class="bg-white p-6 rounded-xl shadow-md mb-12 scroll-mt-20">
                     <div id="explorer-toggle" class="flex justify-between items-center cursor-pointer">
-                        <h2 class="text-2xl font-semibold text-stone-700">검색 및 필터</h2>
+                        <div class="flex items-center gap-3">
+                            <svg id="explorer-eye" class="eye-toggle w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <h2 class="text-2xl font-semibold text-stone-700">검색 및 필터</h2>
+                        </div>
                         <svg id="explorer-arrow" class="w-6 h-6 transition-transform rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                         </svg>
@@ -142,7 +200,13 @@
 
                 <section id="statistics-accordion" class="mb-12 bg-white p-6 rounded-xl shadow-md scroll-mt-20">
                     <div id="statistics-toggle" class="flex justify-between items-center cursor-pointer">
-                        <h2 class="text-2xl font-semibold text-stone-700">나의 독서 현황</h2>
+                        <div class="flex items-center gap-3">
+                            <svg id="statistics-eye" class="eye-toggle w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <h2 class="text-2xl font-semibold text-stone-700">나의 독서 현황</h2>
+                        </div>
                         <svg id="statistics-arrow" class="w-6 h-6 transition-transform rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                         </svg>
@@ -178,7 +242,13 @@
 
                 <section id="dashboard-accordion" class="mb-12 bg-white p-6 rounded-xl shadow-md scroll-mt-20">
                     <div id="dashboard-toggle" class="flex justify-between items-center cursor-pointer">
-                        <h2 class="text-2xl font-semibold text-stone-700">인포그래픽 요약</h2>
+                        <div class="flex items-center gap-3">
+                            <svg id="dashboard-eye" class="eye-toggle w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <h2 class="text-2xl font-semibold text-stone-700">인포그래픽 요약</h2>
+                        </div>
                         <svg id="dashboard-arrow" class="w-6 h-6 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                         </svg>
@@ -595,6 +665,13 @@
         let activeCategoryFilter = 'All';
         let activeStageFilter = '1'; // Default stage filter
         let activeStatusFilter = 'All';
+
+        // 섹션 표시 상태 관리
+        let sectionVisibility = {
+            explorer: true,
+            statistics: true,
+            dashboard: true
+        };
 
         const stageInfo = {
             0: { name: '나의 서재: 직접 추가한 책들', description: '내가 직접 추가하여 관리하는 도서 목록입니다.' },
@@ -1194,6 +1271,135 @@ const renderBooks = (booksToRender) => {
                 explorerContent.classList.toggle('open');
                 explorerArrow.classList.toggle('rotate-180');
             });
+
+            // 섹션 표시/숨김 기능
+            function toggleSectionVisibility(sectionName) {
+                sectionVisibility[sectionName] = !sectionVisibility[sectionName];
+                updateSectionDisplay(sectionName);
+                updateEyeIcon(sectionName);
+                updateMobileToggle(sectionName);
+                updateNavButton(sectionName);
+            }
+
+            function updateSectionDisplay(sectionName) {
+                const section = document.getElementById(`${sectionName}-accordion`);
+                const isMobile = window.innerWidth < 768;
+                
+                if (sectionVisibility[sectionName]) {
+                    if (isMobile) {
+                        section.classList.remove('mobile-hidden');
+                    }
+                    section.style.display = 'block';
+                } else {
+                    if (isMobile) {
+                        section.classList.add('mobile-hidden');
+                    } else {
+                        section.style.display = 'none';
+                    }
+                }
+            }
+
+            function updateEyeIcon(sectionName) {
+                const eyeIcon = document.getElementById(`${sectionName}-eye`);
+                if (sectionVisibility[sectionName]) {
+                    eyeIcon.classList.remove('hidden-state');
+                    eyeIcon.innerHTML = `
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    `;
+                } else {
+                    eyeIcon.classList.add('hidden-state');
+                    eyeIcon.innerHTML = `
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                    `;
+                }
+            }
+
+            function updateMobileToggle(sectionName) {
+                const mobileToggle = document.getElementById(`mobile-${sectionName}-toggle`);
+                if (mobileToggle) {
+                    mobileToggle.checked = sectionVisibility[sectionName];
+                }
+            }
+
+            function updateNavButton(sectionName) {
+                const navBtn = document.getElementById(`nav-${sectionName}-btn`);
+                if (navBtn) {
+                    navBtn.classList.remove('active', 'inactive');
+                    if (sectionVisibility[sectionName]) {
+                        navBtn.classList.add('active');
+                    } else {
+                        navBtn.classList.add('inactive');
+                    }
+                }
+            }
+
+            function initializeMobileVisibility() {
+                const isMobile = window.innerWidth < 768;
+                if (isMobile) {
+                    // 모바일에서는 기본적으로 모든 섹션 숨김
+                    sectionVisibility = { explorer: false, statistics: false, dashboard: false };
+                }
+                Object.keys(sectionVisibility).forEach(section => {
+                    updateSectionDisplay(section);
+                    updateEyeIcon(section);
+                    updateMobileToggle(section);
+                    updateNavButton(section);
+                });
+            }
+
+            // 눈 아이콘 클릭 이벤트
+            document.getElementById('explorer-eye').addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleSectionVisibility('explorer');
+            });
+            document.getElementById('statistics-eye').addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleSectionVisibility('statistics');
+            });
+            document.getElementById('dashboard-eye').addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleSectionVisibility('dashboard');
+            });
+
+            // 모바일 토글 스위치 이벤트
+            document.getElementById('mobile-explorer-toggle').addEventListener('change', () => {
+                toggleSectionVisibility('explorer');
+            });
+            document.getElementById('mobile-statistics-toggle').addEventListener('change', () => {
+                toggleSectionVisibility('statistics');
+            });
+            document.getElementById('mobile-dashboard-toggle').addEventListener('change', () => {
+                toggleSectionVisibility('dashboard');
+            });
+
+            // 데스크톱 네비게이션 버튼 이벤트
+            document.getElementById('nav-explorer-btn').addEventListener('click', () => {
+                toggleSectionVisibility('explorer');
+            });
+            document.getElementById('nav-statistics-btn').addEventListener('click', () => {
+                toggleSectionVisibility('statistics');
+            });
+            document.getElementById('nav-dashboard-btn').addEventListener('click', () => {
+                toggleSectionVisibility('dashboard');
+            });
+
+            // 화면 크기 변경 감지
+            window.addEventListener('resize', () => {
+                const isMobile = window.innerWidth < 768;
+                Object.keys(sectionVisibility).forEach(section => {
+                    updateSectionDisplay(section);
+                });
+            });
+
+            // 햄버거 메뉴 토글
+            document.getElementById('hamburger-btn').addEventListener('click', () => {
+                const mobileMenu = document.getElementById('mobile-menu');
+                mobileMenu.classList.toggle('hidden');
+            });
+
+            // 초기 모바일 설정
+            initializeMobileVisibility();
             
 
             const setupCharts = () => {
