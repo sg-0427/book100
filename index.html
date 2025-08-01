@@ -6,6 +6,28 @@
     <title>서울대 추천도서 100선: 인터랙티브 가이드</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Firebase 설정 및 초기화
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+        import { getFirestore, collection, doc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyCY0G7xD5l62db7ZBJc7rXNPWj_aeHeq2k",
+            authDomain: "essential-vim-465607-n9.firebaseapp.com",
+            projectId: "essential-vim-465607-n9",
+            storageBucket: "essential-vim-465607-n9.appspot.com",
+            messagingSenderId: "584614677917",
+            appId: "1:584614677917:web:AlzaSyCY0G7xD5l62db7ZBJc7rXNPWj_aeHeq2k"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        window.firebaseDB = db;
+        console.log('Firebase 초기화 완료!');
+    </script>
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -13,7 +35,7 @@
     <!-- PWA 설정 -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#0f766e">
-    <link rel="apple-touch-icon" href="./icon-192.png">
+    <link rel="apple-touch-icon" href="./book100db/icon6.svg">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="서울대추천도서100">
@@ -663,7 +685,7 @@
         let currentEditingBookId = null;
         let activeSourceFilter = 'All';
         let activeCategoryFilter = 'All';
-        let activeStageFilter = '1'; // Default stage filter
+        let activeStageFilter = 'All'; // 전체로 변경하여 모든 도서 표시
         let activeStatusFilter = 'All';
 
         // 섹션 표시 상태 관리
@@ -698,11 +720,74 @@ const coloredBookIcon = `
             if (book.startDate) return '🔖'; // Reading
             return '📖'; // To-be-read
         };
+
+        // Firebase 연동 함수들 (Firebase 설정 완료 후 활성화)
+        let isFirebaseEnabled = false;
         
-        const saveData = () => {
+        const initFirebase = async () => {
+            if (typeof window.firebaseDB !== 'undefined') {
+                isFirebaseEnabled = true;
+                console.log('Firebase 연결 성공');
+                await syncFromFirebase();
+            } else {
+                console.log('Firebase 미연결 - 로컬 저장소 사용');
+                isFirebaseEnabled = false;
+            }
+        };
+        
+        const syncToFirebase = async (data) => {
+            if (!isFirebaseEnabled) return;
+            
+            try {
+                const { setDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
+                await setDoc(doc(window.firebaseDB, 'bookData', 'userBooks'), {
+                    books: data,
+                    lastUpdated: new Date().toISOString()
+                });
+                console.log('Firebase 동기화 완료');
+            } catch (error) {
+                console.error('Firebase 저장 실패:', error);
+            }
+        };
+        
+        const syncFromFirebase = async () => {
+            if (!isFirebaseEnabled) return;
+            
+            try {
+                const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
+                const docRef = doc(window.firebaseDB, 'bookData', 'userBooks');
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    const firebaseData = docSnap.data();
+                    const localData = JSON.parse(localStorage.getItem('snuBookTrackerData') || '[]');
+                    
+                    // 로컬과 Firebase 데이터 중 더 최신 것 사용
+                    const localLastUpdate = localStorage.getItem('lastLocalUpdate');
+                    if (!localLastUpdate || new Date(firebaseData.lastUpdated) > new Date(localLastUpdate)) {
+                        bookData = firebaseData.books.map(book => ({...book, memos: book.memos || [], isDeleted: book.isDeleted || false }));
+                        localStorage.setItem('snuBookTrackerData', JSON.stringify(bookData));
+                        localStorage.setItem('lastLocalUpdate', firebaseData.lastUpdated);
+                        console.log('Firebase에서 데이터 동기화');
+                    }
+                }
+            } catch (error) {
+                console.error('Firebase 로드 실패:', error);
+            }
+        };
+        
+        const saveData = async () => {
+            const now = new Date().toISOString();
             localStorage.setItem('snuBookTrackerData', JSON.stringify(bookData));
+            localStorage.setItem('lastLocalUpdate', now);
+            
             const filters = { activeSourceFilter, activeCategoryFilter, activeStageFilter, activeStatusFilter };
             localStorage.setItem('snuBookTrackerFilters', JSON.stringify(filters));
+            
+            // Firebase 동기화
+            if (isFirebaseEnabled) {
+                await syncToFirebase(bookData);
+            }
         };
 
         const loadData = () => {
@@ -719,7 +804,7 @@ const coloredBookIcon = `
                 const parsedFilters = JSON.parse(savedFilters);
                 activeSourceFilter = parsedFilters.activeSourceFilter || 'All';
                 activeCategoryFilter = parsedFilters.activeCategoryFilter || 'All';
-                activeStageFilter = parsedFilters.activeStageFilter || '1';
+                activeStageFilter = parsedFilters.activeStageFilter || 'All';
                 activeStatusFilter = parsedFilters.activeStatusFilter || 'All';
             }
         };
@@ -965,7 +1050,7 @@ const renderBooks = (booksToRender) => {
             }, 200);
         };
 
-        const handleSaveDates = () => {
+        const handleSaveDates = async () => {
             if (currentEditingBookId === null) return;
             const bookIndex = bookData.findIndex(b => b.id === currentEditingBookId);
             if (bookIndex === -1) return;
@@ -976,13 +1061,13 @@ const renderBooks = (booksToRender) => {
             bookData[bookIndex].startDate = startDate || null;
             bookData[bookIndex].completionDate = completionDate || null;
             
-            saveData();
+            await saveData();
             updateStatistics();
             applyFilters();
             closeModal();
         };
         
-        const handleAddNewBook = () => {
+        const handleAddNewBook = async () => {
             const title = document.getElementById('new-book-title').value.trim();
             const author = document.getElementById('new-book-author').value.trim();
             if (!title || !author) {
@@ -1023,7 +1108,7 @@ const renderBooks = (booksToRender) => {
             };
 
             bookData.push(newBook);
-            saveData();
+            await saveData();
             updateStatistics();
             setupFilterDropdowns();
             applyFilters();
@@ -1072,7 +1157,7 @@ const renderBooks = (booksToRender) => {
             });
         };
 
-        const handleAddMemo = () => {
+        const handleAddMemo = async () => {
             const memoInput = document.getElementById('memo-input');
             const content = memoInput.value.trim();
             if (!content || currentEditingBookId === null) return;
@@ -1084,15 +1169,15 @@ const renderBooks = (booksToRender) => {
                 content: content
             };
             book.memos.push(newMemo);
-            saveData();
+            await saveData();
             renderMemos(book.memos);
             memoInput.value = '';
         };
 
-        const handleDeleteMemo = (memoId) => {
+        const handleDeleteMemo = async (memoId) => {
             const book = bookData.find(b => b.id === currentEditingBookId);
             book.memos = book.memos.filter(m => m.id !== memoId);
-            saveData();
+            await saveData();
             renderMemos(book.memos);
         };
 
@@ -1121,11 +1206,11 @@ const renderBooks = (booksToRender) => {
             memoElement.querySelector('.flex.justify-between div').append(saveBtn, cancelBtn);
         };
 
-        const handleSaveMemo = (memoId, newContent) => {
+        const handleSaveMemo = async (memoId, newContent) => {
             const book = bookData.find(b => b.id === currentEditingBookId);
             const memo = book.memos.find(m => m.id === memoId);
             memo.content = newContent;
-            saveData();
+            await saveData();
             renderMemos(book.memos);
         };
 
@@ -1166,8 +1251,9 @@ const renderBooks = (booksToRender) => {
         };
 
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             loadData();
+            await initFirebase(); // Firebase 초기화 추가
             
             const searchInput = document.getElementById('search-input');
             const modalCloseBtn = document.getElementById('modal-close-btn');

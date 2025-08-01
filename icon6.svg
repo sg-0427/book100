@@ -1,0 +1,10 @@
+<svg width="256" height="256" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 배경: 차분한 회색의 둥근 사각형 -->
+  <rect width="120" height="120" rx="24" fill="#E0E0E0"/>
+
+  <!-- 책 표지 -->
+  <rect x="25" y="20" width="70" height="80" rx="8" fill="#1E88E5"/>
+
+  <!-- 숫자 100: 크고 굵은 폰트로 가독성을 높임 -->
+  <text x="60" y="70" font-family="'Arial Black', Gadget, sans-serif" font-size="48" fill="white" text-anchor="middle">100</text>
+</svg>
