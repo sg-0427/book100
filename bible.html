@@ -90,6 +90,36 @@
             border: 1px solid transparent;
         }
     </style>
+    <!-- Firebase SDK 실시간 연동 (index.html 설정 공유) -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+        import { getFirestore, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyCY0G7xD5l62db7ZBJc7rXNPWj_aeHeq2k",
+            authDomain: "essential-vim-465607-n9.firebaseapp.com",
+            databaseURL: "https://essential-vim-465607-n9-default-rtdb.firebaseio.com",
+            projectId: "essential-vim-465607-n9",
+            storageBucket: "essential-vim-465607-n9.firebasestorage.app",
+            messagingSenderId: "584614677917",
+            appId: "1:584614677917:web:5bde969ab8460768b23374",
+            measurementId: "G-NM70GXW5D8"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        // 브라우저 전역 변수에 등록 (일반 스크립트에서도 사용 가능하게 함)
+        window.db = db;
+        window.doc = doc;
+        window.setDoc = setDoc;
+        window.onSnapshot = onSnapshot;
+
+        // 준비 완료 후 연동 로직 실행
+        if(window.initFirebaseSync) {
+            window.initFirebaseSync();
+        }
+    </script>
 </head>
 <body class="light">
 
@@ -368,8 +398,50 @@
         }
 
         function saveLocalStorage() {
+            // 로컬 스토리지에 백업 (오프라인 캐시 역할)
             localStorage.setItem('bible_master_sync_v7', JSON.stringify(userState));
+            
+            // Firebase 실시간 서버에 동기화
+            if (window.setDoc && window.doc && window.db) {
+                const docRef = window.doc(window.db, 'bibleApp', 'userState_v7');
+                window.setDoc(docRef, userState).catch(err => {
+                    console.error("Firebase 저장 에러:", err);
+                });
+            }
         }
+
+        let isInitialLoadDone = false;
+        
+        window.initFirebaseSync = function() {
+            if (!window.db) return;
+            const docRef = window.doc(window.db, 'bibleApp', 'userState_v7');
+            
+            // Firebase 실시간 리스너 작동
+            window.onSnapshot(docRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const serverData = snapshot.data();
+                    if (serverData) {
+                        userState = {...userState, ...serverData};
+                        initDataPath(userState.currentYear, userState.currentSession);
+                        
+                        // 서버 데이터를 로컬 스토리지에 백업
+                        localStorage.setItem('bible_master_sync_v7', JSON.stringify(userState));
+                        
+                        // 초기 로딩 이후 외부에서 데이터가 변경된 경우 즉시 UI 갱신 (실시간 연동)
+                        if (isInitialLoadDone) {
+                            renderSelectors();
+                            renderUI();
+                            updateToday();
+                        }
+                    }
+                } else {
+                    // 서버에 데이터가 아예 없다면 기존 로컬 데이터를 서버로 최초 1회 업로드
+                    saveLocalStorage();
+                }
+            }, (error) => {
+                console.error("Firebase 연동 에러:", error);
+            });
+        };
 
         // --- 4. Core Interaction ---
 
@@ -688,10 +760,16 @@
 
         window.onload = function() {
             initSchedules();
-            loadLocalStorage();
+            loadLocalStorage(); // 오프라인에서도 즉시 작동하도록 로컬 데이터를 먼저 렌더링
             renderSelectors();
             renderUI();
             updateToday();
+            isInitialLoadDone = true;
+            
+            // Firebase 모듈이 먼저 로드된 경우를 대비한 실행
+            if (window.db && window.initFirebaseSync) {
+                window.initFirebaseSync();
+            }
         };
 
     </script>
