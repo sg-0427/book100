@@ -389,9 +389,15 @@
             if (!userState.memos[year]) userState.memos[year] = {};
             if (!userState.memos[year][session]) userState.memos[year][session] = {};
             
-            if (Object.keys(userState.collapsedParts.mccheyne).length === 0) {
-                mcPartConfig.forEach(p => userState.collapsedParts.mccheyne[p.title] = true);
-            }
+            // collapsedParts 초기화 보강
+            if (!userState.collapsedParts.mccheyne) userState.collapsedParts.mccheyne = {};
+            if (!userState.collapsedParts.sequential) userState.collapsedParts.sequential = {};
+            
+            mcPartConfig.forEach(p => {
+                if (userState.collapsedParts.mccheyne[p.title] === undefined) {
+                    userState.collapsedParts.mccheyne[p.title] = true;
+                }
+            });
         }
 
         function loadLocalStorage() {
@@ -660,31 +666,34 @@
             const container = document.getElementById('yearly-summary');
             const totalChapters = 1189;
             
-            container.innerHTML = userState.sessions.map(s => {
-                const year = userState.currentYear;
-                initDataPath(year, s);
-                const readStore = userState.masterRead[year][s];
-                const readCount = Object.values(readStore).filter(v => v).length;
-                const percent = Math.round((readCount / totalChapters) * 100);
-                const isCurrent = (s === userState.currentSession);
-                
-                return `
-                    <div class="glass-card p-6 flex flex-col gap-3 ${isCurrent ? 'ring-2 ring-indigo-500' : ''}">
-                        <div class="flex justify-between items-end">
-                            <span class="text-xl font-black">${year}년 ${s}</span>
-                            <span class="text-lg font-bold text-indigo-500">${percent}%</span>
+            let html = "";
+            userState.years.forEach(year => {
+                userState.sessions.forEach(s => {
+                    initDataPath(year, s);
+                    const readStore = userState.masterRead[year][s];
+                    const readCount = Object.values(readStore).filter(v => v).length;
+                    const percent = Math.round((readCount / totalChapters) * 100);
+                    const isCurrent = (year === userState.currentYear && s === userState.currentSession);
+                    
+                    html += `
+                        <div class="glass-card p-6 flex flex-col gap-3 ${isCurrent ? 'ring-2 ring-indigo-500' : ''}">
+                            <div class="flex justify-between items-end">
+                                <span class="text-xl font-black">${year}년 ${s}</span>
+                                <span class="text-lg font-bold text-indigo-500">${percent}%</span>
+                            </div>
+                            <div class="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                                <div class="bg-indigo-500 h-full transition-all duration-1000" style="width: ${percent}%"></div>
+                            </div>
+                            <div class="flex justify-between text-[11px] opacity-40 font-bold">
+                                <span>누적 읽기</span>
+                                <span>${readCount} / ${totalChapters} 장 완료</span>
+                                <button onclick="userState.currentYear='${year}'; userState.currentSession='${s}'; initDataPath('${year}', '${s}'); saveLocalStorage(); renderUI(); renderSelectors();" class="text-indigo-600 hover:underline">선택</button>
+                            </div>
                         </div>
-                        <div class="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
-                            <div class="bg-indigo-500 h-full transition-all duration-1000" style="width: ${percent}%"></div>
-                        </div>
-                        <div class="flex justify-between text-[11px] opacity-40 font-bold">
-                            <span>누적 읽기</span>
-                            <span>${readCount} / ${totalChapters} 장 완료</span>
-                            <button onclick="userState.currentSession='${s}'; renderUI(); renderSelectors();" class="text-indigo-600 hover:underline">선택</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+                    `;
+                });
+            });
+            container.innerHTML = html;
         }
 
         function updateStats() {
@@ -768,6 +777,23 @@
             renderUI();
             updateToday();
             isInitialLoadDone = true;
+
+            // 추가: 드롭다운 상호작용 리스너
+            document.getElementById('year-selector').addEventListener('change', (e) => {
+                userState.currentYear = e.target.value;
+                initDataPath(userState.currentYear, userState.currentSession);
+                saveLocalStorage();
+                renderUI();
+                updateToday();
+            });
+
+            document.getElementById('session-selector').addEventListener('change', (e) => {
+                userState.currentSession = e.target.value;
+                initDataPath(userState.currentYear, userState.currentSession);
+                saveLocalStorage();
+                renderUI();
+                updateToday();
+            });
             
             // Firebase 모듈이 먼저 로드된 경우를 대비한 실행
             if (window.db && window.initFirebaseSync) {
