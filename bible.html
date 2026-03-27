@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>성경 읽기 플래너 Pro (Master Sync & UI Fix)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap');
+        :root { --primary: #6366f1; }
+        body { font-family: 'Pretendard', sans-serif; transition: background-color 0.3s, color 0.3s; }
+        body.light { background-color: #f8fafc; color: #1e293b; }
+        body.dark { background-color: #0f172a; color: #f1f5f9; }
+        
+        .glass-card { 
+            background: rgba(255, 255, 255, 0.8); 
+            backdrop-filter: blur(10px); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            border-radius: 1rem;
+        }
+        .dark .glass-card { background: rgba(30, 41, 59, 0.7); border-color: rgba(255, 255, 255, 0.05); }
+        
+        .progress-ring { transition: stroke-dashoffset 0.35s; transform: rotate(-90deg); transform-origin: 50% 50%; }
+        .active-tab { border-bottom: 3px solid var(--primary); color: var(--primary); font-weight: 700; }
+        .active-mode { background-color: var(--primary); color: white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        
+        .calendar-grid-container { overflow-x: auto; padding-bottom: 1rem; }
+        .calendar-table { min-width: 1000px; border-collapse: separate; border-spacing: 2px; table-layout: fixed; width: 100%; }
+        .calendar-table th { padding: 8px; font-weight: 800; text-align: center; background: #6366f1; color: white; border-radius: 4px; font-size: 0.8rem; }
+        .calendar-table td { 
+            border: 1px solid #e2e8f0; 
+            min-height: 65px; 
+            padding: 6px; 
+            font-size: 10px; 
+            vertical-align: top; 
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 6px;
+        }
+        @media (max-width: 768px) {
+            .calendar-table td { font-size: 9px; padding: 3px; }
+        }
+        .dark .calendar-table td { border-color: #334155; background: #1e293b; }
+        .td-checked { background-color: #e0e7ff !important; border-color: #6366f1 !important; box-shadow: inset 0 0 0 1px #6366f1; }
+        .dark .td-checked { background-color: #312e81 !important; border-color: #818cf8 !important; }
+        
+        /* Accordion Header Style */
+        .part-header { 
+            background: linear-gradient(90deg, #6366f1, #a855f7); 
+            color: white; 
+            padding: 12px 18px; 
+            border-radius: 12px; 
+            font-weight: 800; 
+            font-size: 0.9rem;
+            margin: 16px 0 8px 0;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .part-header:hover { transform: scale(1.01); }
+        .part-header i { transition: transform 0.3s; }
+        .part-header.collapsed i { transform: rotate(-90deg); }
+
+        .hidden { display: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        select:focus { ring: 2px; ring-color: var(--primary); }
+
+        /* Enhanced Memo Input for Moltivaion */
+        #memo-input {
+            background-color: #1e293b;
+            color: #ffffff;
+            border-color: #334155;
+        }
+        .dark #memo-input { background-color: #0f172a; }
+
+        /* Custom Button Style for Light Mode */
+        .btn-light-fix {
+            background-color: white !important;
+            color: black !important;
+            border: 1px solid #e2e8f0;
+        }
+        .dark .btn-light-fix {
+            background-color: #1e293b !important;
+            color: white !important;
+            border: 1px solid transparent;
+        }
+    </style>
+</head>
+<body class="light">
+
+    <div id="app" class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-bold mb-1">📖 성경 읽기 플래너</h1>
+                <p class="opacity-60 text-sm">2026년 3월 24일 (화) · <span id="current-mode-label" class="text-indigo-500 font-bold uppercase tracking-wider">한국형 맥체인</span></p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <button onclick="toggleTheme()" class="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shadow-sm">
+                    <i id="theme-icon" class="fa-solid fa-moon"></i>
+                </button>
+                
+                <div class="flex items-center gap-1">
+                    <select id="year-selector" class="bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-semibold outline-none shadow-sm"></select>
+                    <button onclick="addYear()" class="w-9 h-9 bg-indigo-600 text-white rounded-lg flex items-center justify-center hover:bg-indigo-700 transition-all shadow-md">
+                        <i class="fa-solid fa-calendar-plus"></i>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-1">
+                    <select id="session-selector" class="bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-semibold outline-none shadow-sm"></select>
+                    <button onclick="addSession()" class="w-9 h-9 bg-emerald-600 text-white rounded-lg flex items-center justify-center hover:bg-emerald-700 transition-all shadow-md">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+
+                <button onclick="backupData()" class="text-slate-400 hover:text-indigo-600 transition-colors ml-1" title="백업">
+                    <i class="fa-solid fa-cloud-arrow-down text-xl"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Mode Selector -->
+        <div class="flex p-1 bg-slate-200 dark:bg-slate-800 rounded-xl mb-8 w-fit mx-auto md:mx-0 shadow-inner">
+            <button onclick="switchMode('mccheyne')" id="mode-mccheyne" class="px-6 py-2 rounded-lg text-sm font-bold transition-all active-mode">한국형 맥체인</button>
+            <button onclick="switchMode('sequential')" id="mode-sequential" class="px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-indigo-500">성경 순서대로</button>
+        </div>
+
+        <!-- Main Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="glass-card p-6 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs opacity-60 font-medium">현재 진행률</p>
+                    <p class="text-2xl font-bold text-indigo-500" id="stat-progress">0%</p>
+                </div>
+                <div class="relative w-14 h-14">
+                    <svg class="w-full h-full">
+                        <circle cx="28" cy="28" r="24" stroke="#e2e8f0" stroke-width="4" fill="transparent" />
+                        <circle id="progress-circle" cx="28" cy="28" r="24" stroke="#6366f1" stroke-width="4" fill="transparent" 
+                                stroke-dasharray="150.8" stroke-dashoffset="150.8" class="progress-ring" />
+                    </svg>
+                </div>
+            </div>
+            <div class="glass-card p-6 shadow-sm md:col-span-2">
+                <p class="text-xs opacity-60 font-medium mb-1">오늘 읽을 본문 (클릭 시 성경 검색)</p>
+                <div id="today-assignment" class="flex flex-wrap gap-2"></div>
+            </div>
+            <div class="glass-card p-6 shadow-sm">
+                <p class="text-xs opacity-60 font-medium">기록된 메모</p>
+                <p class="text-2xl font-bold" id="stat-memo">0개</p>
+            </div>
+        </div>
+
+        <!-- Navigation Sub-Tabs -->
+        <div class="flex border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto no-scrollbar">
+            <button onclick="switchTab('plan')" id="tab-plan" class="px-6 py-3 text-sm font-medium active-tab whitespace-nowrap">리스트형</button>
+            <button onclick="switchTab('calendar')" id="tab-calendar" class="px-6 py-3 text-sm font-medium text-slate-500 whitespace-nowrap">캘린더형(표)</button>
+            <button onclick="switchTab('memo')" id="tab-memo" class="px-6 py-3 text-sm font-medium text-slate-500 whitespace-nowrap">메모 리스트</button>
+            <button onclick="switchTab('history')" id="tab-history" class="px-6 py-3 text-sm font-medium text-slate-500 whitespace-nowrap">연도별 기록</button>
+        </div>
+
+        <!-- Tab Contents -->
+        <div id="content-plan" class="tab-content">
+            <!-- Accordion Controls -->
+            <div class="flex justify-end gap-2 mb-4">
+                <button onclick="toggleAllParts(true)" class="btn-light-fix px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-indigo-50 hover:text-indigo-600 transition-all">전체 펼치기</button>
+                <button onclick="toggleAllParts(false)" class="btn-light-fix px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-indigo-50 hover:text-indigo-600 transition-all">전체 접기</button>
+            </div>
+            <div id="reading-list" class="space-y-1 pb-10"></div>
+        </div>
+
+        <div id="content-calendar" class="tab-content hidden">
+            <div class="calendar-grid-container no-scrollbar">
+                <table class="calendar-table">
+                    <thead><tr id="calendar-header"></tr></thead>
+                    <tbody id="calendar-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="content-memo" class="tab-content hidden">
+            <div id="memo-list" class="space-y-4"></div>
+        </div>
+
+        <div id="content-history" class="tab-content hidden">
+            <div id="yearly-summary" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+    </div>
+
+    <!-- Memo Modal -->
+    <div id="memo-modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div class="p-5 border-b dark:border-slate-700 flex justify-between items-center">
+                <h4 class="font-bold">메모/묵상 기록</h4>
+                <button onclick="closeModal()" class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <p id="modal-subtitle" class="text-xs text-indigo-500 font-bold mb-2 uppercase"></p>
+                <textarea id="memo-input" rows="6" class="w-full border border-slate-200 dark:border-slate-700 rounded-xl p-4 outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner" placeholder="말씀의 은혜를 기록하세요..."></textarea>
+            </div>
+            <div class="p-5 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3">
+                <button onclick="closeModal()" class="px-4 py-2 text-slate-500 font-medium">취소</button>
+                <button onclick="saveMemo()" class="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg shadow-lg">기록 저장</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. Master Data Definitions ---
+        const bibleBooksData = [
+            { n: "창세기", c: 50 }, { n: "출애굽기", c: 40 }, { n: "레위기", c: 27 }, { n: "민수기", c: 36 }, { n: "신명기", c: 34 },
+            { n: "여호수아", c: 24 }, { n: "사사기", c: 21 }, { n: "룻기", c: 4 }, { n: "사무엘상", c: 31 }, { n: "사무엘하", c: 24 },
+            { n: "열왕기상", c: 22 }, { n: "열왕기하", c: 25 }, { n: "역대상", c: 29 }, { n: "역대하", c: 36 }, { n: "에스라", c: 10 },
+            { n: "느헤미야", c: 13 }, { n: "에스더", c: 10 }, { n: "욥기", c: 42 }, { n: "시편", c: 150 }, { n: "잠언", c: 31 },
+            { n: "전도서", c: 12 }, { n: "아가", c: 8 }, { n: "이사야", c: 66 }, { n: "예레미야", c: 52 }, { n: "예레미야애가", c: 5 },
+            { n: "에스겔", c: 48 }, { n: "다니엘", c: 12 }, { n: "호세아", c: 14 }, { n: "요엘", c: 3 }, { n: "아모스", c: 9 },
+            { n: "오바댜", c: 1 }, { n: "요나", c: 4 }, { n: "미가", c: 7 }, { n: "나훔", c: 3 }, { n: "하박국", c: 3 },
+            { n: "스바냐", c: 3 }, { n: "학개", c: 2 }, { n: "스가랴", c: 14 }, { n: "말라기", c: 4 },
+            { n: "마태복음", c: 28 }, { n: "마가복음", c: 16 }, { n: "누가복음", c: 24 }, { n: "요한복음", c: 21 }, { n: "사도행전", c: 28 },
+            { n: "로마서", c: 16 }, { n: "고린도전서", c: 16 }, { n: "고린도후서", c: 13 }, { n: "갈라디아서", c: 6 }, { n: "에베소서", c: 6 },
+            { n: "빌립보서", c: 4 }, { n: "골로새서", c: 4 }, { n: "데살로니가전서", c: 5 }, { n: "데살로니가후서", c: 3 }, { n: "디모데전서", c: 6 },
+            { n: "디모데후서", c: 4 }, { n: "디도서", c: 3 }, { n: "빌레몬서", c: 1 }, { n: "히브리서", c: 13 }, { n: "야고보서", c: 5 },
+            { n: "베드로전서", c: 5 }, { n: "베드로후서", c: 3 }, { n: "요한1서", c: 5 }, { n: "요한2서", c: 1 }, { n: "요한3서", c: 1 },
+            { n: "유다서", c: 1 }, { n: "요한계시록", c: 22 }
+        ];
+
+        const mcPartConfig = [
+            { startIdx: 0, title: "Part I : 초대 그리스도인이 현대 그리스도인에게" },
+            { startIdx: 9, title: "Part II : 인생 최대의 질문들" },
+            { startIdx: 34, title: "Part III : 하나님의 나라가 이 땅에 이루어지이다" },
+            { startIdx: 75, title: "Part IV : 하나님의 통치 안에 거하는 삶" },
+            { startIdx: 104, title: "Part V : 이스라엘 왕국이 시작되다" },
+            { startIdx: 154, title: "Part VI : 분열된 왕국, 분리된 왕국" },
+            { startIdx: 204, title: "Part VII : 절망 속에서 보는 소망" },
+            { startIdx: 231, title: "Part VIII : 메시아가 오시다" }
+        ];
+
+        const mcRawData = [
+            "베드로전서 1-5, 마가복음 1-16, 베드로후서 1-3",
+            "빌립보서 1-4, 데살로니가전서 1-5, 데살로니가후서 1-3, 디모데전서 1-6, 디모데후서 1-4",
+            "전도서 1-12, 시편 37, 시편 38, 시편 39, 시편 41, 욥기 1-3, 시편 49, 시편 73, 시편 88",
+            "욥기 4-26", "에베소서 1-6, 욥기 27-42",
+            "창세기 1-2, 시편 1, 시편 8, 시편 19, 시편 104, 시편 148, 창세기 3, 시편 14, 창세기 4-5, 시편 10, 창세기 6-7, 시편 29, 창세기 8-9, 시편 9, 시편 32, 시편 33, 시편 65",
+            "요한복음 1-21, 시편 22, 시편 69", "시편 2, 창세기 10-20, 로마서 1-11",
+            "갈라디아서 1-6, 창세기 21-27, 로마서 12-16, 시편 15, 시편 131, 시편 67, 시편 86",
+            "창세기 28-50", "출애굽기 1-15, 시편 114, 시편 136, 시편 77, 출애굽기 16-18, 시편 105, 시편 78",
+            "출애굽기 19-24, 시편 99, 출애굽기 25-34, 시편 97, 출애굽기 35-40",
+            "히브리서 1-5, 시편 95, 시편 110, 히브리서 6-13, 야고보서 1-5, 시편 117, 시편 119",
+            "골로새서 1-4, 레위기 1-5, 시편 20, 레위기 6-9, 시편 50, 레위기 10-16, 시편 103",
+            "요한1서 1-5, 레위기 17-25, 빌레몬서 1, 레위기 26-27, 요한2서 1, 요한3서 1, 잠언 31",
+            "민수기 1-4, 고린도전서 1-6, 민수기 5-17, 유다서 1", "민수기 18-24, 고린도전서 7-10, 민수기 25-36",
+            "시편 81, 고린도후서 1-13, 시편 68, 시편 107, 고린도전서 11-16",
+            "시편 90, 신명기 1-3, 잠언 1-4, 신명기 4-6, 잠언 5-7, 신명기 7-11, 잠언 8-10, 시편 91",
+            "신명기 12-16, 잠언 11-13, 신명기 17-22, 잠언 14-15, 신명기 23-26, 잠언 16-18",
+            "신명기 27-30, 잠언 19-24, 신명기 31-32, 잠언 25-30, 신명기 33-34, 시편 111, 시편 112, 시편 116",
+            "여호수아 1-24", "사사기 1-16, 시편 106, 사사기 17-21", "룻기 1-4, 사무엘상 1-2, 시편 113, 사무엘상 3-16, 시편 23",
+            "역대상 1-2, 마태복음 1-20", "시편 118, 마태복음 21-28, 역대상 3-9, 시편 139, 사무엘상 17-19, 시편 59, 사무엘상 20, 시편 11, 시편 141",
+            "사무엘상 21, 시편 56, 시편 34, 시편 27, 사무엘상 22, 시편 142, 시편 52, 시편 58, 시편 12, 사무엘상 23, 시편 54, 시편 70, 사무엘상 24, 시편 57, 시편 31, 시편 26, 시편 40, 사무엘상 25, 시편 53, 사무엘상 26, 시편 7, 시편 17, 시편 35, 시편 36",
+            "사무엘상 27-30, 시편 6, 시편 13, 사무엘상 31, 시편 28, 사무엘하 1, 역대상 10, 사무엘하 2-5, 역대상 11-15, 사무엘하 6, 역대상 16, 시편 98, 시편 16",
+            "시편 24, 사무엘하 7, 역대상 17, 시편 89, 시편 132, 시편 101, 시편 96, 사무엘하 8-10, 역대상 18-20, 시편 60, 시편 21, 시편 66, 사무엘하 11-12, 시편 51, 시편 25, 역대상 21-22",
+            "사무엘하 13-14, 시편 62, 시편 64, 사무엘하 15, 시편 3, 사무엘하 16, 시편 63, 시편 55, 시편 109, 사무엘하 17, 시편 4, 사무엘하 18, 시편 143, 사무엘하 19, 시편 5, 시편 61, 시편 71, 사무엘하 20-22, 시편 18",
+            "사무엘하 23-24, 시편 30, 시편 144, 시편 140, 시편 138, 역대상 23-29, 시편 145, 열왕기상 1-3, 시편 72, 열왕기상 4-8",
+            "시편 93, 아가 1-8, 역대하 1-9, 열왕기상 9-10, 시편 45, 열왕기상 11",
+            "열왕기상 12, 역대하 10-11, 열왕기상 13-14, 역대하 12-13, 열왕기상 15, 역대하 14-16, 열왕기상 16-21, 역대하 17, 열왕기상 22, 역대하 18-20, 시편 83",
+            "열왕기하 1-8, 역대하 21-22, 열왕기하 9-11, 역대하 23, 열왕기하 12, 역대하 24, 열왕기하 13-14, 역대하 25, 요나 1-4",
+            "역대하 26, 열왕기하 15, 아모스 1-5, 시편 82, 아모스 6-9, 호세아 1-3, 이사야 1-6, 미가 1-4",
+            "역대하 27-28, 열왕기하 16, 이사야 7-8, 미가 5-7, 시편 46, 이사야 9-12, 호세아 4-14, 열왕기하 17",
+            "역대하 29-31, 열왕기하 18, 시편 42, 시편 43, 시편 44, 시편 80, 이사야 13-23, 시편 47, 시편 75",
+            "역대하 32, 이사야 24-36, 열왕기하 19, 이사야 37, 시편 48, 시편 76, 시편 115, 이사야 38-39, 열왕기하 20-21, 역대하 33",
+            "스바냐 1-3, 예레미야 1-6, 나훔 1-3, 역대하 34, 열왕기하 22-23, 역대하 35, 하박국 1-3, 시편 94",
+            "예레미야 22, 예레미야 26, 예레미야 7-20, 예레미야 23, 예레미야 25, 예레미야 45, 예레미야 36, 예레미야 35, 열왕기하 24",
+            "예레미야 24, 예레미야 29, 다니엘 1-4, 예레미야 27-28, 에스겔 1-15",
+            "에스겔 16-24, 예레미야 21, 예레미야 34, 예레미야 37, 에스겔 25-32, 예레미야 30-33, 예레미야 38",
+            "예레미야 39, 열왕기하 25, 시편 74, 시편 79, 오바댜 1, 시편 137, 예레미야 40-44, 예레미야 46-52, 예레미야애가 1-5",
+            "다니엘 7-8, 요한계시록 1-22", "에스겔 33-48, 다니엘 5-6, 다니엘 9, 시편 102, 역대하 36",
+            "이사야 40-45, 에스라 1, 시편 126, 이사야 46-55, 시편 84, 에스라 2, 시편 122, 에스라 3, 시편 85",
+            "에스라 4, 시편 124, 시편 146, 학개 1, 시편 127, 학개 2, 스가랴 1-6, 시편 121, 에스라 5, 스가랴 7-8, 시편 128, 에스라 6, 시편 147, 시편 87, 시편 100, 시편 134, 시편 92",
+            "시편 120, 에스더 1-4, 시편 129, 에스더 5-10, 시편 125, 이사야 56-59, 시편 130, 이사야 60-66",
+            "에스라 7-10, 시편 133, 느헤미야 1-2, 시편 123, 느헤미야 3-6, 시편 108, 느헤미야 7-13, 시편 135, 시편 149, 시편 150",
+            "다니엘 10-12, 스가랴 9-14, 말라기 1-4, 요엘 1-3, 누가복음 1-9", "누가복음 10-24, 사도행전 1-8", "사도행전 9-28, 디도서 1-3"
+        ];
+
+        // --- 2. State Management (Master Data Model) ---
+        let userState = {
+            currentYear: '2026',
+            currentSession: '1독',
+            currentMode: 'mccheyne',
+            years: ["2026", "2027", "2028"],
+            sessions: ["1독", "2독"],
+            masterRead: {},
+            memos: {},
+            collapsedParts: { mccheyne: {}, sequential: {} }
+        };
+
+        let schedules = { mccheyne: [], sequential: [] };
+        let currentTab = 'plan';
+        let isDarkMode = false;
+
+        // --- 3. Logic: Data Initialization ---
+
+        function parseBibleString(raw) {
+            let chaps = [];
+            raw.split(',').forEach(part => {
+                part = part.trim();
+                let match = part.match(/^(.+?)\s?(\d+)(-(\d+))?$/);
+                if (match) {
+                    let bookName = match[1];
+                    let start = parseInt(match[2]);
+                    let end = match[4] ? parseInt(match[4]) : start;
+                    for (let i = start; i <= end; i++) chaps.push(`${bookName} ${i}`);
+                }
+            });
+            return chaps;
+        }
+
+        function initSchedules() {
+            // 1. Sequential Generator
+            let allSequential = [];
+            bibleBooksData.forEach(b => {
+                for (let i = 1; i <= b.c; i++) allSequential.push(`${b.n} ${i}`);
+            });
+            for (let i = 0; i < allSequential.length; i += 5) {
+                let dayIdx = i / 5;
+                let date = new Date(2026, 0, dayIdx + 1);
+                schedules.sequential.push({
+                    id: dayIdx, month: date.getMonth() + 1, day: date.getDate(),
+                    chapters: allSequential.slice(i, i + 5)
+                });
+            }
+
+            // 2. McCheyne Generator
+            let allMc = [];
+            mcRawData.forEach(raw => allMc.push(...parseBibleString(raw)));
+            for (let i = 0; i < allMc.length; i += 5) {
+                let dayIdx = i / 5;
+                let date = new Date(2026, 0, dayIdx + 1);
+                const part = mcPartConfig.find(p => p.startIdx === dayIdx);
+                schedules.mccheyne.push({
+                    id: dayIdx, month: date.getMonth() + 1, day: date.getDate(),
+                    chapters: allMc.slice(i, i + 5),
+                    partTitle: part ? part.title : null
+                });
+            }
+        }
+
+        function initDataPath(year, session) {
+            if (!userState.masterRead[year]) userState.masterRead[year] = {};
+            if (!userState.masterRead[year][session]) userState.masterRead[year][session] = {};
+            if (!userState.memos[year]) userState.memos[year] = {};
+            if (!userState.memos[year][session]) userState.memos[year][session] = {};
+            
+            if (Object.keys(userState.collapsedParts.mccheyne).length === 0) {
+                mcPartConfig.forEach(p => userState.collapsedParts.mccheyne[p.title] = true);
+            }
+        }
+
+        function loadLocalStorage() {
+            const saved = localStorage.getItem('bible_master_sync_v7');
+            if (saved) userState = {...userState, ...JSON.parse(saved)};
+            initDataPath(userState.currentYear, userState.currentSession);
+        }
+
+        function saveLocalStorage() {
+            localStorage.setItem('bible_master_sync_v7', JSON.stringify(userState));
+        }
+
+        // --- 4. Core Interaction ---
+
+        function toggleCheck(dayId) {
+            const year = userState.currentYear;
+            const session = userState.currentSession;
+            const mode = userState.currentMode;
+            const dayData = schedules[mode].find(s => s.id === dayId);
+            if (!dayData) return;
+
+            const readStore = userState.masterRead[year][session];
+            // Check if all chapters in this set are already read
+            const isAllRead = dayData.chapters.every(c => readStore[c]);
+            
+            // Toggle all chapters in this group
+            dayData.chapters.forEach(c => {
+                readStore[c] = !isAllRead;
+            });
+
+            saveLocalStorage();
+            renderUI();
+        }
+
+        function isDayChecked(dayData) {
+            const readStore = userState.masterRead[userState.currentYear][userState.currentSession];
+            return dayData.chapters.length > 0 && dayData.chapters.every(c => readStore[c]);
+        }
+
+        // --- 5. Accordion Logic ---
+
+        function togglePart(partTitle) {
+            const mode = userState.currentMode;
+            userState.collapsedParts[mode][partTitle] = !userState.collapsedParts[mode][partTitle];
+            saveLocalStorage();
+            renderList();
+        }
+
+        function toggleAllParts(isOpen) {
+            const mode = userState.currentMode;
+            if (mode === 'mccheyne') {
+                mcPartConfig.forEach(p => userState.collapsedParts.mccheyne[p.title] = isOpen);
+            }
+            saveLocalStorage();
+            renderList();
+        }
+
+        // --- 6. UI Rendering ---
+
+        function renderSelectors() {
+            const yearSel = document.getElementById('year-selector');
+            yearSel.innerHTML = userState.years.map(y => `<option value="${y}" ${y === userState.currentYear ? 'selected' : ''}>${y}년</option>`).join('');
+            
+            const sessSel = document.getElementById('session-selector');
+            sessSel.innerHTML = userState.sessions.map(s => `<option value="${s}" ${s === userState.currentSession ? 'selected' : ''}>${s}</option>`).join('');
+        }
+
+        function addYear() {
+            const year = prompt("추가할 연도(4자리):");
+            if (year && /^\d{4}$/.test(year) && !userState.years.includes(year)) {
+                userState.years.push(year);
+                userState.years.sort();
+                userState.currentYear = year;
+                initDataPath(year, userState.currentSession);
+                saveLocalStorage();
+                renderSelectors();
+                renderUI();
+            }
+        }
+
+        function addSession() {
+            const sess = prompt("추가할 독차(예: 3독, 특별회독):");
+            if (sess && !userState.sessions.includes(sess)) {
+                userState.sessions.push(sess);
+                userState.currentSession = sess;
+                initDataPath(userState.currentYear, sess);
+                saveLocalStorage();
+                renderSelectors();
+                renderUI();
+            }
+        }
+
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.body.className = isDarkMode ? 'dark' : 'light';
+            document.getElementById('theme-icon').className = isDarkMode ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+        }
+
+        function switchMode(mode) {
+            userState.currentMode = mode;
+            document.getElementById('mode-mccheyne').className = mode === 'mccheyne' ? 'px-6 py-2 rounded-lg text-sm font-bold active-mode' : 'px-6 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-indigo-500';
+            document.getElementById('mode-sequential').className = mode === 'sequential' ? 'px-6 py-2 rounded-lg text-sm font-bold active-mode' : 'px-6 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-indigo-500';
+            document.getElementById('current-mode-label').innerText = mode === 'mccheyne' ? '한국형 맥체인' : '성경 순서대로';
+            renderUI();
+            updateToday();
+            saveLocalStorage();
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.remove('active-tab', 'text-slate-500'));
+            document.getElementById(`content-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('active-tab');
+            renderUI();
+        }
+
+        function renderList() {
+            const list = document.getElementById('reading-list');
+            const schedule = schedules[userState.currentMode];
+            const memoStore = userState.memos[userState.currentYear][userState.currentSession];
+            const mode = userState.currentMode;
+            
+            let html = "";
+            let currentPartOpen = true;
+
+            schedule.slice(0, 366).forEach(day => {
+                // Header check (McCheyne specific for Accordion)
+                if (mode === 'mccheyne' && day.partTitle) {
+                    currentPartOpen = userState.collapsedParts[mode][day.partTitle];
+                    html += `
+                        <div class="part-header ${!currentPartOpen ? 'collapsed' : ''}" onclick="togglePart('${day.partTitle}')">
+                            <span>${day.partTitle}</span>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                    `;
+                }
+
+                if (currentPartOpen || mode === 'sequential') {
+                    const checked = isDayChecked(day);
+                    html += `
+                        <div class="glass-card p-4 flex items-center justify-between gap-4 transition-all hover:scale-[1.005] ${checked ? 'opacity-40' : ''}">
+                            <div class="flex items-center gap-4">
+                                <div onclick="toggleCheck(${day.id})" class="w-8 h-8 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${checked ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600'}">
+                                    <i class="fa-solid fa-check text-xs"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] opacity-50 font-bold">${day.month}월 ${day.day}일</p>
+                                    <p class="font-bold text-sm leading-tight">${day.chapters.join(', ')}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openMemo(${day.id})" class="text-xl ${memoStore[day.id + '_' + mode] ? 'text-amber-500' : 'opacity-20 hover:opacity-100 hover:text-indigo-500'}">
+                                    <i class="fa-solid fa-note-sticky"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            list.innerHTML = html;
+        }
+
+        function renderCalendar() {
+            const header = document.getElementById('calendar-header');
+            const body = document.getElementById('calendar-body');
+            const schedule = schedules[userState.currentMode];
+            
+            header.innerHTML = Array.from({length: 12}, (_, i) => `<th>${i+1}월</th>`).join('');
+            
+            let rows = "";
+            for(let d=1; d<=31; d++) {
+                rows += "<tr>";
+                for(let m=1; m<=12; m++) {
+                    const dayData = schedule.find(s => s.month === m && s.day === d);
+                    if(!dayData) {
+                        rows += `<td class="bg-slate-50 dark:bg-slate-950/30 opacity-10"></td>`;
+                    } else {
+                        const checked = isDayChecked(dayData);
+                        const links = dayData.chapters.map(c => `<span onclick="event.stopPropagation(); window.open('https://search.naver.com/search.naver?query=${encodeURIComponent(c)}+성경')" class="hover:text-indigo-500 hover:underline block truncate leading-tight cursor-pointer">${c}</span>`).join('');
+                        rows += `
+                            <td onclick="toggleCheck(${dayData.id})" class="${checked ? 'td-checked' : ''}">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="font-black opacity-20 text-[9px]">${d}</span>
+                                    ${checked ? '<i class="fa-solid fa-check text-indigo-500 text-[9px]"></i>' : ''}
+                                </div>
+                                <div class="space-y-0.5">${links}</div>
+                            </td>
+                        `;
+                    }
+                }
+                rows += "</tr>";
+            }
+            body.innerHTML = rows;
+        }
+
+        function renderMemoList() {
+            const container = document.getElementById('memo-list');
+            const memoStore = userState.memos[userState.currentYear][userState.currentSession];
+            const keys = Object.keys(memoStore).sort((a,b) => b-a);
+            
+            if(keys.length === 0) {
+                container.innerHTML = `<div class="text-center py-24 opacity-30"><p>기록된 메모가 없습니다.</p></div>`;
+                return;
+            }
+
+            container.innerHTML = keys.map(key => {
+                const [id, mode] = key.split('_');
+                const day = schedules[mode].find(s => s.id == id);
+                return `
+                    <div class="glass-card p-6 relative group border border-transparent hover:border-indigo-100 transition-all">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-xs text-indigo-500 font-bold uppercase">${mode === 'mccheyne' ? '맥체인' : '순서'} | ${day.month}월 ${day.day}일 · ${day.chapters.join(', ')}</span>
+                            <button onclick="deleteMemo('${key}')" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                        <p class="whitespace-pre-wrap text-sm leading-relaxed text-slate-600 dark:text-slate-300">${memoStore[key]}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('yearly-summary');
+            const totalChapters = 1189;
+            
+            container.innerHTML = userState.sessions.map(s => {
+                const year = userState.currentYear;
+                initDataPath(year, s);
+                const readStore = userState.masterRead[year][s];
+                const readCount = Object.values(readStore).filter(v => v).length;
+                const percent = Math.round((readCount / totalChapters) * 100);
+                const isCurrent = (s === userState.currentSession);
+                
+                return `
+                    <div class="glass-card p-6 flex flex-col gap-3 ${isCurrent ? 'ring-2 ring-indigo-500' : ''}">
+                        <div class="flex justify-between items-end">
+                            <span class="text-xl font-black">${year}년 ${s}</span>
+                            <span class="text-lg font-bold text-indigo-500">${percent}%</span>
+                        </div>
+                        <div class="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                            <div class="bg-indigo-500 h-full transition-all duration-1000" style="width: ${percent}%"></div>
+                        </div>
+                        <div class="flex justify-between text-[11px] opacity-40 font-bold">
+                            <span>누적 읽기</span>
+                            <span>${readCount} / ${totalChapters} 장 완료</span>
+                            <button onclick="userState.currentSession='${s}'; renderUI(); renderSelectors();" class="text-indigo-600 hover:underline">선택</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateStats() {
+            const year = userState.currentYear;
+            const session = userState.currentSession;
+            const readStore = userState.masterRead[year][session];
+            const memoStore = userState.memos[year][session];
+            const totalChapters = 1189;
+            const readCount = Object.values(readStore).filter(v => v).length;
+            const percent = Math.round((readCount / totalChapters) * 100);
+            
+            document.getElementById('stat-progress').innerText = `${percent}%`;
+            document.getElementById('stat-memo').innerText = `${Object.keys(memoStore).length}개`;
+            
+            const circle = document.getElementById('progress-circle');
+            circle.style.strokeDashoffset = 150.8 - (percent / 100 * 150.8);
+        }
+
+        function updateToday() {
+            const now = new Date();
+            const schedule = schedules[userState.currentMode];
+            const today = schedule.find(s => s.month === (now.getMonth()+1) && s.day === now.getDate());
+            const container = document.getElementById('today-assignment');
+            
+            if(today) {
+                container.innerHTML = today.chapters.map(c => `
+                    <button onclick="window.open('https://search.naver.com/search.naver?query=${encodeURIComponent(c)}+성경')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-lg hover:bg-indigo-700 hover:scale-105 transition-all">
+                        ${c} <i class="fa-solid fa-search ml-1 text-[8px]"></i>
+                    </button>
+                `).join('');
+            }
+        }
+
+        function renderUI() {
+            if(currentTab === 'plan') renderList();
+            if(currentTab === 'calendar') renderCalendar();
+            if(currentTab === 'memo') renderMemoList();
+            if(currentTab === 'history') renderHistory();
+            updateStats();
+        }
+
+        let selectedMemoKey = null;
+        function openMemo(dayId) {
+            selectedMemoKey = dayId + "_" + userState.currentMode;
+            const day = schedules[userState.currentMode].find(s => s.id == dayId);
+            document.getElementById('modal-subtitle').innerText = `${day.month}월 ${day.day}일 · ${day.chapters.join(', ')}`;
+            const memoStore = userState.memos[userState.currentYear][userState.currentSession];
+            document.getElementById('memo-input').value = memoStore[selectedMemoKey] || "";
+            document.getElementById('memo-modal').classList.remove('hidden');
+        }
+        function closeModal() { document.getElementById('memo-modal').classList.add('hidden'); }
+        function saveMemo() {
+            const val = document.getElementById('memo-input').value.trim();
+            const memoStore = userState.memos[userState.currentYear][userState.currentSession];
+            if(val) memoStore[selectedMemoKey] = val;
+            else delete memoStore[selectedMemoKey];
+            saveLocalStorage();
+            renderUI();
+            closeModal();
+        }
+        function deleteMemo(key) {
+            if(confirm("기록을 삭제하시겠습니까?")) {
+                delete userState.memos[userState.currentYear][userState.currentSession][key];
+                saveLocalStorage();
+                renderUI();
+            }
+        }
+
+        function backupData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(userState));
+            const dl = document.createElement('a');
+            dl.setAttribute("href", dataStr);
+            dl.setAttribute("download", `성경읽기_마스터백업_${new Date().toLocaleDateString()}.json`);
+            dl.click();
+        }
+
+        window.onload = function() {
+            initSchedules();
+            loadLocalStorage();
+            renderSelectors();
+            renderUI();
+            updateToday();
+        };
+
+    </script>
+</body>
+</html>
